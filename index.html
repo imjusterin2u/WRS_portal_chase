@@ -794,8 +794,11 @@ function startRound() {
   G.portalOpen = 0; G.portalPerm = false;
   const m = mazeFor(G.round);
   G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
-  // edge portals from the older maps become plain wall; portals now live inside the maze (see placePortals)
+  // wrap-around portals on the edges: left <-> right across the middle row, top <-> bottom down the middle column
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) if (G.grid[y][x] === 'P') G.grid[y][x] = '#';
+  { const my = Math.floor(G.rows / 2), mx = Math.floor(G.cols / 2);
+    [[0, my, 1, my], [G.cols - 1, my, G.cols - 2, my], [mx, 0, mx, 1], [mx, G.rows - 1, mx, G.rows - 2]].forEach(([x, y, ix, iy]) => {
+      G.grid[y][x] = 'P'; if (G.grid[iy][ix] === '#') G.grid[iy][ix] = '.'; }); }
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
     const c = G.grid[y][x];
     if (c === 'S') G.start = { x, y };
@@ -840,15 +843,19 @@ function startRound() {
 }
 const PORTAL_COLORS = [{ name: 'blue', c: '#3A8DDE', glow: '#9fd0ff' }, { name: 'red', c: '#ff4d6d', glow: '#ffb3c1' }, { name: 'green', c: '#3ddc84', glow: '#b6ffd6' }];
 function placePortals() {
-  G.portals = [];
+  const my = Math.floor(G.rows / 2), mx = Math.floor(G.cols / 2), WRAP = { name: 'purple', c: '#a66cf0', glow: '#e7d4ff' };
+  G.portals = [
+    { x: 0, y: my, pair: 'h', color: WRAP, edge: 'L' }, { x: G.cols - 1, y: my, pair: 'h', color: WRAP, edge: 'R' },
+    { x: mx, y: 0, pair: 'v', color: WRAP, edge: 'T' }, { x: mx, y: G.rows - 1, pair: 'v', color: WRAP, edge: 'B' }
+  ];
   const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
   const nearRoom = (x, y) => Object.values(G.rooms).some(r => x >= r.x0 - 1 && x <= r.x1 + 1 && y >= r.y0 - 1 && y <= r.y1 + 1);
   const cands = [];
   for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++)
     if (G.grid[y][x] === '.' && !doors.includes(x + ',' + y) && !nearRoom(x, y) && Math.abs(x - G.start.x) + Math.abs(y - G.start.y) >= 3) cands.push({ x, y });
   const far = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  for (let t = 0; t < 300 && G.portals.length < 6; t++) {
-    const k = G.portals.length / 2, a = R.pick(cands), b = R.pick(cands);
+  for (let t = 0; t < 300 && G.portals.length < 10; t++) {
+    const k = (G.portals.length - 4) / 2, a = R.pick(cands), b = R.pick(cands);
     if (far(a, b) < Math.max(10, G.cols / 2)) continue;           // the two ends of a pair are far apart
     if (G.portals.some(p => far(p, a) < 4 || far(p, b) < 4)) continue;
     const col = PORTAL_COLORS[k];
@@ -1248,6 +1255,28 @@ function render(ts) {
   ctx.save(); ctx.translate(ox, oy);
   // portals: color-coded pairs
   G.portals.forEach(p => {
+    if (p.edge) {
+      const off = { L: [-0.3, 0], R: [0.3, 0], T: [0, -0.3], B: [0, 0.3] }[p.edge];
+      const ex = p.x * T + T / 2 + off[0] * T, ey = p.y * T + T / 2 + off[1] * T;
+      ctx.save(); ctx.translate(ex, ey); if (p.edge === 'T' || p.edge === 'B') ctx.rotate(Math.PI / 2);
+      if (G.portalOpen > 0) {
+        const s3 = 1 + 0.06 * Math.sin(now * 6);
+        ctx.save(); ctx.shadowColor = p.color.c; ctx.shadowBlur = T * 0.8;
+        const eg = ctx.createRadialGradient(0, 0, 1, 0, 0, T * 0.5);
+        eg.addColorStop(0, '#ffffff'); eg.addColorStop(0.45, p.color.glow); eg.addColorStop(1, p.color.c);
+        ctx.fillStyle = eg; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.2 * s3, T * 0.5 * s3, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+        for (let k = 0; k < 3; k++) { const a = now * 3 + k * 2.1; sparkle(ctx, Math.cos(a) * T * 0.35, Math.sin(a) * T * 0.5, T * 0.12, '#fff', 0.8); }
+      } else {
+        ctx.fillStyle = 'rgba(20,24,36,.9)'; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.16, T * 0.44, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = p.color.c; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(200,160,255,.6)'; ctx.lineWidth = 1.5;
+        for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(-T * 0.14, k * T * 0.14); ctx.lineTo(T * 0.14, k * T * 0.14); ctx.stroke(); }
+      }
+      ctx.restore();
+      if (G.portalOpen <= 0) emoji('🔒', p.x * T + T / 2 - off[0] * T * 0.5, p.y * T + T / 2 - off[1] * T * 0.5, T * 0.42, 0.9);
+      return;
+    }
     const cx = p.x * T + T / 2, cy = p.y * T + T / 2, col = p.color;
     if (G.portalOpen > 0) {
       const s2 = 1 + 0.07 * Math.sin(now * 6 + p.pair);
