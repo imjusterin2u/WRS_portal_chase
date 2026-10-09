@@ -390,11 +390,60 @@ const SUBSTEPS = {
 
 /* ===================================================================== MAZES */
 // # wall   . path   P portal (left/right pair)   S runner start (center); chasers start at far-away spots found automatically
-const MAZES = [
+// Open maps: no dead ends, every hallway loops (default)
+const MAZES_OPEN = [
  [ '#####################',
-   '#1111#.........#2222#',
-   '#1111#.##.#.##.#2222#',
-   '##.###.##...##.###.##',
+   '#1111...........2222#',
+   '#1111.##.#.#.##.2222#',
+   '#...................#',
+   '#.##.##.##.##.##.##.#',
+   '#.##.##.##.##.##.##.#',
+   '#...................#',
+   'P...##.##.S.##.##...P',
+   '#...................#',
+   '#.##.##.##.##.##.##.#',
+   '#.##.##.##.##.##.##.#',
+   '#...................#',
+   '#3333.##.#.#.##.4444#',
+   '#3333...........4444#',
+   '#####################' ],
+ [ '#####################',
+   '#1111...........2222#',
+   '#1111.###.#.###.2222#',
+   '#...................#',
+   '#.###.###.#.###.###.#',
+   '#.###.###...###.###.#',
+   '#...................#',
+   'P..##.##..S..##.##..P',
+   '#...................#',
+   '#.###.###...###.###.#',
+   '#.###.###.#.###.###.#',
+   '#...................#',
+   '#3333.###.#.###.4444#',
+   '#3333...........4444#',
+   '#####################' ],
+ [ '#####################',
+   '#1111...........2222#',
+   '#1111.#.##.##.#.2222#',
+   '#...................#',
+   '#.#.###.#.#.#.###.#.#',
+   '#.#.###.#...#.###.#.#',
+   '#...................#',
+   'P.##.#.##.S.##.#.##.P',
+   '#...................#',
+   '#.#.###.#...#.###.#.#',
+   '#.#.###.#.#.#.###.#.#',
+   '#...................#',
+   '#3333.#.##.##.#.4444#',
+   '#3333...........4444#',
+   '#####################' ]
+];
+// Twisty maps: more walls, jogs and dead ends (harder)
+const MAZES_TWISTY = [
+ [ '#####################',
+   '#1111...........2222#',
+   '#1111..##.#.##..2222#',
+   '#..###.##...##.###..#',
    '#...................#',
    '#.##.###.###.###.##.#',
    '#....#....#....#....#',
@@ -402,14 +451,14 @@ const MAZES = [
    '#.##.#....#....#.##.#',
    '#.##.###.###.###.##.#',
    '#...................#',
-   '##.###.##...##.###.##',
-   '#3333#.##.#.##.#4444#',
-   '#3333#.........#4444#',
+   '#..###.##...##.###..#',
+   '#3333..##.#.##..4444#',
+   '#3333...........4444#',
    '#####################' ],
  [ '#####################',
-   '#1111#.........#2222#',
-   '#1111#.###.###.#2222#',
-   '##.###...#.#...###.##',
+   '#1111...........2222#',
+   '#1111..###.###..2222#',
+   '#..###...#.#...###..#',
    '#.....#.......#.....#',
    '#.###.#.##.##.#.###.#',
    '#.#.......#.......#.#',
@@ -417,14 +466,14 @@ const MAZES = [
    '#.#.......#.......#.#',
    '#.###.#.##.##.#.###.#',
    '#.....#.......#.....#',
-   '##.###...#.#...###.##',
-   '#3333#.###.###.#4444#',
-   '#3333#.........#4444#',
+   '#..###...#.#...###..#',
+   '#3333..###.###..4444#',
+   '#3333...........4444#',
    '#####################' ],
  [ '#####################',
-   '#1111#....#....#2222#',
-   '#1111#.##.#.##.#2222#',
-   '##.###.##...##.###.##',
+   '#1111.....#.....2222#',
+   '#1111..##.#.##..2222#',
+   '#..###.##...##.###..#',
    '#...#...........#...#',
    '#.#.#.###.#.###.#.#.#',
    '#.#...#.......#...#.#',
@@ -432,11 +481,13 @@ const MAZES = [
    '#.#...#.......#...#.#',
    '#.#.#.###.#.###.#.#.#',
    '#...#...........#...#',
-   '##.###.##...##.###.##',
-   '#3333#.##.#.##.#4444#',
-   '#3333#.........#4444#',
+   '#..###.##...##.###..#',
+   '#3333..##.#.##..4444#',
+   '#3333...........4444#',
    '#####################' ]
 ];
+const MAZES = MAZES_OPEN.concat(MAZES_TWISTY);
+const mazeList = () => S.maps === 'twisty' ? MAZES_TWISTY : S.maps === 'mix' ? [MAZES_OPEN[0], MAZES_TWISTY[0], MAZES_OPEN[1], MAZES_TWISTY[1], MAZES_OPEN[2], MAZES_TWISTY[2]] : MAZES_OPEN;
 // 1-4 = answer rooms (runner only; one doorway each). Rooms sit in the same corners in every maze.
 const isRoom = c => c >= '1' && c <= '4';
 
@@ -463,7 +514,7 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, maps: 'open' };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -537,6 +588,8 @@ function buildTeacherPanel() {
   });
   section(P, 'Substeps', subs, 'Questions are mixed evenly across the substeps you check.');
   section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
+  section(P, 'Maps', seg([['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.maps, v => { S.maps = v; saveSettings(); }),
+    '<b>Open</b>: no dead ends, hard to get cornered (easiest). <b>Twisty</b>: more walls and dead ends. <b>Mix</b>: switches between them each round.');
   section(P, 'Runner speed', seg([['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast']], S.runSpeed, v => { S.runSpeed = v; saveSettings(); }),
     'Chasers are always slower than the runner, and their speed scales with this setting.');
   section(P, 'Chaser difficulty', seg(Object.entries(DIFF).map(([k, d]) => [k, d.name]), S.diff, v => { S.diff = v; saveSettings(); $('#diffHint').textContent = DIFF[v].desc + '. Each new round adds a little speed, and an extra chaser every other round.'; }),
@@ -613,7 +666,7 @@ function newGame() {
   showScreen('game'); setupDpad(); startRound();
 }
 function startRound() {
-  const m = MAZES[(G.round - 1) % MAZES.length];
+  const ml = mazeList(); const m = ml[(G.round - 1) % ml.length];
   G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
     const c = G.grid[y][x];
@@ -633,7 +686,8 @@ function startRound() {
       for (const d of DIRS) { const n = { x: c.x + d.dx, y: c.y + d.dy }, k = n.x + ',' + n.y;
         if (passE(n.x, n.y) && !(k in dist)) { dist[k] = dv + 1; q.push(n); } } }
     const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
-    const cands = q.filter(c => !doors.includes(c.x + ',' + c.y)).sort((a, b) => dist[b.x + ',' + b.y] - dist[a.x + ',' + a.y]);
+    const nearRoom = c => Object.values(G.rooms).some(r => c.x >= r.x0 - 2 && c.x <= r.x1 + 2 && c.y >= r.y0 - 2 && c.y <= r.y1 + 2);
+    const cands = q.filter(c => !doors.includes(c.x + ',' + c.y) && !nearRoom(c)).sort((a, b) => dist[b.x + ',' + b.y] - dist[a.x + ',' + a.y]);
     G.spawns = [];
     for (const c of cands) { if (G.spawns.length >= 5) break; if (G.spawns.every(s2 => Math.abs(s2.x - c.x) + Math.abs(s2.y - c.y) >= 7)) G.spawns.push(c); }
     for (const c of cands) { if (G.spawns.length >= 5) break; if (!G.spawns.includes(c)) G.spawns.push(c); } }
@@ -779,11 +833,19 @@ function playerChoose(e) {
     const o = G.portals.find(p => p.x !== e.x || p.y !== e.y);
     if (o) { e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; SFX.portal(); }
   }
+  if (held.length) {
+    const cur = { dx: e.dx, dy: e.dy }, moving = e.dx || e.dy;
+    const ok = d => passP(e.x + d.dx, e.y + d.dy);
+    const isCur = d => d.dx === cur.dx && d.dy === cur.dy, isRev = d => moving && d.dx === -cur.dx && d.dy === -cur.dy;
+    const pick = held.find(d => !isCur(d) && !isRev(d) && ok(d)) || held.find(d => isCur(d) && ok(d)) || held.find(ok);
+    if (pick) { e.nextDir = { dx: pick.dx, dy: pick.dy }; return e.nextDir; }
+  }
   const nd = e.nextDir;
   if (nd && passP(e.x + nd.dx, e.y + nd.dy)) return nd;
   if ((e.dx || e.dy) && passP(e.x + e.dx, e.y + e.dy)) return { dx: e.dx, dy: e.dy };
   return null;
 }
+let held = []; // arrow keys currently held down, most recent first
 const DIRS = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
 function enemyChoose(e) {
   const dirs = DIRS.filter(d => passE(e.x + d.dx, e.y + d.dy));
@@ -1097,8 +1159,13 @@ const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDo
 window.addEventListener('keydown', ev => {
   if (!$('#game').classList.contains('active')) return;
   if (ev.key === 'p' || ev.key === 'P' || ev.key === 'Escape') { if (G && G.state === 'paused') { closeModal(); G.state = G.prevState; } else pause(); ev.preventDefault(); return; }
-  const k = KEYS[ev.key]; if (k) { setDir(k[0], k[1]); ev.preventDefault(); }
+  const k = KEYS[ev.key]; if (k) {
+    const key = ev.key.toLowerCase(); if (!held.some(h => h.key === key)) held.unshift({ key, dx: k[0], dy: k[1] });
+    setDir(k[0], k[1]); ev.preventDefault();
+  }
 });
+window.addEventListener('keyup', ev => { const key = ev.key.toLowerCase(); held = held.filter(h => h.key !== key); });
+window.addEventListener('blur', () => { held = []; });
 function setupDpad() {
   const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   $('#dpad').classList.toggle('show', !!S.dpad && (coarse || 'ontouchstart' in window));
