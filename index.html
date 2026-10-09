@@ -728,16 +728,24 @@ function openTeacher() { const P = $('#teacherPanel'); P.hidden = false; buildTe
 function lockTeacher() { teacherUnlocked = false; $('#teacherPanel').hidden = true; }
 function askCode(msg) {
   $('#mbox').innerHTML = `<h2>🔒 Teacher Tools</h2><p>${msg || 'Enter the teacher code.'}</p>
-    <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" style="font:inherit;font-size:1.6rem;text-align:center;width:220px;padding:10px;border-radius:12px;border:2px solid #2f5440;background:#0b1a12;color:#fff;letter-spacing:6px">
+    <input id="pinIn" type="text" name="pc-${Date.now()}" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly style="-webkit-text-security:disc;font:inherit;font-size:1.6rem;text-align:center;width:220px;padding:10px;border-radius:12px;border:2px solid #2f5440;background:#0b1a12;color:#fff;letter-spacing:6px">
     <div class="mbtns"><button id="pinOk">Unlock</button><button class="alt" id="pinCancel">Cancel</button></div>`;
   $('#modal').classList.add('show');
-  const inp = $('#pinIn'); setTimeout(() => inp.focus(), 50);
+  // readonly until focused + not a password field, so browser password managers can't fill it in
+  const inp = $('#pinIn'); inp.value = ''; setTimeout(() => { inp.removeAttribute('readonly'); inp.value = ''; inp.focus(); }, 60);
   const tryIt = () => {
+    if (!inp.value.replace(/\D/g, '')) { askCode('Type the code first (numbers only).'); return; }
     if (codeHash(inp.value.replace(/\D/g, '')) === TEACHER_CODE_HASH) { teacherUnlocked = true; closeModal(); openTeacher(); }
     else askCode('<span style="color:#ff8a8a;font-weight:700">That code didn\'t work.</span> Try again.');
   };
   $('#pinOk').onclick = tryIt; $('#pinCancel').onclick = closeModal;
-  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') tryIt(); if (ev.key === 'Escape') closeModal(); });
+  inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' || ev.code === 'NumpadEnter') { ev.preventDefault(); tryIt(); return; }
+    if (ev.key === 'Escape') { closeModal(); return; }
+    // number-pad keys type digits even when Num Lock is off
+    const m = /^Numpad(\d)$/.exec(ev.code || '');
+    if (m && !/^\d$/.test(ev.key)) { ev.preventDefault(); inp.value += m[1]; }
+  });
 }
 $('#teacherBtn').onclick = () => {
   const P = $('#teacherPanel');
