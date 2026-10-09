@@ -453,16 +453,17 @@ const THEMES = {
       glow: '#b7fff0', orb: ['#fffef0', '#f1ecc4', '#c9c290'], orbR: 0.12, star: '#e6fff8', starN: 70, fog: true, crater: true, sparkle: '#d8fff6' } }
 };
 const DIFF = {
-  easy:   { name: 'Easy',   count: 2, speed: 2.4, smart: 0.45, scared: 7, desc: '2 slow chasers that wander a lot' },
-  medium: { name: 'Medium', count: 3, speed: 3.0, smart: 0.70, scared: 6, desc: '3 chasers that follow you most of the time' },
-  hard:   { name: 'Hard',   count: 4, speed: 3.6, smart: 0.88, scared: 5, desc: '4 fast chasers that hunt you down' }
+  easy:   { name: 'Easy',   count: 2, speed: 0.55, smart: 0.45, scared: 7, desc: '2 slow chasers that wander a lot' },
+  medium: { name: 'Medium', count: 3, speed: 0.66, smart: 0.70, scared: 6, desc: '3 chasers that follow you most of the time' },
+  hard:   { name: 'Hard',   count: 4, speed: 0.78, smart: 0.88, scared: 5, desc: '4 fast chasers that hunt you down' }
 };
 const PLAYERS = ['😎', '🐸', '🤖', '🐱', '🦊', '🐵'];
-const PLAYER_SPEED = 4.6;
+const RUN_SPEEDS = { slow: 2.6, medium: 3.3, fast: 4.2 };
+const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
-  hearts: 3, wrongDrops: true, readAloud: false, sound: true };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -536,6 +537,8 @@ function buildTeacherPanel() {
   });
   section(P, 'Substeps', subs, 'Questions are mixed evenly across the substeps you check.');
   section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
+  section(P, 'Runner speed', seg([['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast']], S.runSpeed, v => { S.runSpeed = v; saveSettings(); }),
+    'Chasers are always slower than the runner, and their speed scales with this setting.');
   section(P, 'Chaser difficulty', seg(Object.entries(DIFF).map(([k, d]) => [k, d.name]), S.diff, v => { S.diff = v; saveSettings(); $('#diffHint').textContent = DIFF[v].desc + '. Each new round adds a little speed, and an extra chaser every other round.'; }),
     `<span id="diffHint">${DIFF[S.diff].desc}. Each new round adds a little speed, and an extra chaser every other round.</span>`);
   section(P, 'Questions per round', seg([6, 8, 10, 12].map(n => [n, String(n)]), S.qPerRound, v => { S.qPerRound = v; saveSettings(); }));
@@ -629,7 +632,7 @@ function startRound() {
   if (G.round > 1) G.hearts = Math.min(S.hearts, G.hearts + 1);
   const d = DIFF[S.diff];
   G.enemyCount = Math.min(5, d.count + Math.floor((G.round - 1) / 2));
-  G.speedBase = d.speed * (1 + 0.06 * (G.round - 1));
+  G.speedBase = runSpeed() * d.speed * (1 + 0.05 * (G.round - 1));
   G.player = mkEnt(G.start); G.player.nextDir = null;
   G.enemies = [];
   for (let i = 0; i < G.enemyCount; i++) {
@@ -782,7 +785,15 @@ function computeDist() {
 function setDir(dx, dy) {
   if (!G || !G.player) return; if (G.state === 'intro') startPlay(); const p = G.player; p.nextDir = { dx, dy };
   if ((p.dx && p.dx === -dx) || (p.dy && p.dy === -dy)) {
-    [p.tx, p.fx] = [p.fx, p.tx]; [p.ty, p.fy] = [p.fy, p.ty]; p.dx = dx; p.dy = dy;
+    [p.tx, p.fx] = [p.fx, p.tx]; [p.ty, p.fy] = [p.fy, p.ty]; p.dx = dx; p.dy = dy; return;
+  }
+  // forgiving turns: a late press within ~half a square after an opening still takes the turn
+  const moving = p.x !== p.tx || p.y !== p.ty;
+  if (moving && (p.dx !== dx || p.dy !== dy)) {
+    const past = Math.abs(p.x - p.fx) + Math.abs(p.y - p.fy);
+    if (past < 0.5 && cell(p.fx, p.fy) !== 'P' && passP(p.fx + dx, p.fy + dy)) {
+      p.x = p.tx = p.fx; p.y = p.ty = p.fy;
+    }
   }
 }
 
@@ -810,7 +821,7 @@ function update(dt) {
     else if (Math.ceil(G.portalOpen) !== before) updateHud(); }
 
   computeDist();
-  stepEnt(G.player, PLAYER_SPEED, dt, playerChoose);
+  stepEnt(G.player, runSpeed(), dt, playerChoose);
   const stall = 1 + 0.6 * frac;
   G.enemies.forEach(e => {
     if (e.dead > 0) { e.dead -= dt; if (e.dead <= 0) { Object.assign(e, mkEnt(G.home)); e.release = 0.5; } return; }
