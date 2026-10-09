@@ -12,7 +12,7 @@
   --red:#E4572E; --blue:#3A8DDE; --yellow:#F2C14E; --purple:#A66CF0;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+html,body{margin:0;height:100%;touch-action:manipulation;background:var(--bg);color:var(--text);
   font-family:Lexend,Verdana,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
 button{font-family:inherit;cursor:pointer}
 .screen{display:none}
@@ -389,7 +389,7 @@ const SUBSTEPS = {
 };
 
 /* ===================================================================== MAZES */
-// # wall   . path   P portal (left/right pair)   S runner start   E chaser home
+// # wall   . path   P portal (left/right pair)   S runner start (center); chasers start at far-away spots found automatically
 const MAZES = [
  [ '#####################',
    '#1111#.........#2222#',
@@ -398,13 +398,13 @@ const MAZES = [
    '#...................#',
    '#.##.###.###.###.##.#',
    '#....#....#....#....#',
-   'P....#.#..E..#.#....P',
+   'P....#.#..S..#.#....P',
    '#.##.#....#....#.##.#',
    '#.##.###.###.###.##.#',
    '#...................#',
    '##.###.##...##.###.##',
    '#3333#.##.#.##.#4444#',
-   '#3333#....S....#4444#',
+   '#3333#.........#4444#',
    '#####################' ],
  [ '#####################',
    '#1111#.........#2222#',
@@ -413,13 +413,13 @@ const MAZES = [
    '#.....#.......#.....#',
    '#.###.#.##.##.#.###.#',
    '#.#.......#.......#.#',
-   'P...###.#.E.#.###...P',
+   'P...###.#.S.#.###...P',
    '#.#.......#.......#.#',
    '#.###.#.##.##.#.###.#',
    '#.....#.......#.....#',
    '##.###...#.#...###.##',
    '#3333#.###.###.#4444#',
-   '#3333#....S....#4444#',
+   '#3333#.........#4444#',
    '#####################' ],
  [ '#####################',
    '#1111#....#....#2222#',
@@ -428,13 +428,13 @@ const MAZES = [
    '#...#...........#...#',
    '#.#.#.###.#.###.#.#.#',
    '#.#...#.......#...#.#',
-   'P...#.#.#.E.#.#.#...P',
+   'P...#.#.#.S.#.#.#...P',
    '#.#...#.......#...#.#',
    '#.#.#.###.#.###.#.#.#',
    '#...#...........#...#',
    '##.###.##...##.###.##',
    '#3333#.##.#.##.#4444#',
-   '#3333#....S....#4444#',
+   '#3333#.........#4444#',
    '#####################' ]
 ];
 // 1-4 = answer rooms (runner only; one doorway each). Rooms sit in the same corners in every maze.
@@ -616,7 +616,7 @@ function startRound() {
   G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
     const c = G.grid[y][x];
-    if (c === 'S') G.start = { x, y }; else if (c === 'E') G.home = { x, y }; else if (c === 'P') G.portals.push({ x, y });
+    if (c === 'S') G.start = { x, y }; else if (c === 'P') G.portals.push({ x, y });
   }
   G.rooms = {};
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
@@ -626,6 +626,16 @@ function startRound() {
     for (const d of DIRS) { const n = cell(x + d.dx, y + d.dy); if (n !== '#' && !isRoom(n)) r.door = { x: x + d.dx, y: y + d.dy }; }
   }
   G.inRoom = null;
+  // chaser start spots: corridor squares far from the center, spread apart from each other
+  { const dist = {}, q = [G.start]; dist[G.start.x + ',' + G.start.y] = 0;
+    for (let h = 0; h < q.length; h++) { const c = q[h], dv = dist[c.x + ',' + c.y];
+      for (const d of DIRS) { const n = { x: c.x + d.dx, y: c.y + d.dy }, k = n.x + ',' + n.y;
+        if (passE(n.x, n.y) && !(k in dist)) { dist[k] = dv + 1; q.push(n); } } }
+    const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
+    const cands = q.filter(c => !doors.includes(c.x + ',' + c.y)).sort((a, b) => dist[b.x + ',' + b.y] - dist[a.x + ',' + a.y]);
+    G.spawns = [];
+    for (const c of cands) { if (G.spawns.length >= 5) break; if (G.spawns.every(s2 => Math.abs(s2.x - c.x) + Math.abs(s2.y - c.y) >= 7)) G.spawns.push(c); }
+    for (const c of cands) { if (G.spawns.length >= 5) break; if (!G.spawns.includes(c)) G.spawns.push(c); } }
   G.questions = buildQuestions(S.qPerRound); G.qi = 0; G.roundRight = 0; G.roundMissed = [];
   G.meter = 0; G.portalOpen = 0; G.burst = 0; G.invuln = 0;
   const pal = THEMES[S.theme].pal; $('#game').style.background = pal.sky[0]; $('#game').style.setProperty('--trim', pal.trim);
@@ -636,20 +646,21 @@ function startRound() {
   G.player = mkEnt(G.start); G.player.nextDir = null;
   G.enemies = [];
   for (let i = 0; i < G.enemyCount; i++) {
-    const e = mkEnt(G.home); e.sprite = THEMES[S.theme].sprites[i % 5]; e.smart = Math.max(0.3, d.smart - i * 0.07);
+    const sp = G.spawns[i % G.spawns.length]; const e = mkEnt(sp); e.spawn = sp; e.sprite = THEMES[S.theme].sprites[i % 5]; e.smart = Math.max(0.3, d.smart - i * 0.07);
     e.release = 1 + i * 1.6; e.scared = 0; e.dead = 0; G.enemies.push(e);
   }
   resize(); loadQuestion(); updateHud();
   showIntro(`Round ${G.round} of ${S.rounds}`);
 }
-function resetPositions() {
+function resetPositions(keepScared) {
   Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null; G.inRoom = null;
-  G.enemies.forEach((e, i) => { Object.assign(e, mkEnt(G.home)); e.release = 1 + i * 1.2; e.scared = 0; e.dead = 0; });
+  G.enemies.forEach((e, i) => { Object.assign(e, mkEnt(e.spawn)); e.release = 0.6 + i * 0.6; if (!keepScared) e.scared = 0; e.dead = 0; });
 }
 function loadQuestion() {
   G.q = G.questions[G.qi]; G.qElapsed = 0; G.lastTick = 99;
   $('#qText').innerHTML = fmtQ(G.q.q);
   G.zones = placeZones(G.q.opts);
+  if (G.player) resetPositions(true);
   $('#opts').innerHTML = G.zones.slice().sort((a, b) => a.room.id.localeCompare(b.room.id)).map(z => `<span class="chip" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</span>`).join('');
   if (S.readAloud) speak(G.q.q);
   if (G.state !== 'done') showIntro('');
@@ -824,7 +835,7 @@ function update(dt) {
   stepEnt(G.player, runSpeed(), dt, playerChoose);
   const stall = 1 + 0.6 * frac;
   G.enemies.forEach(e => {
-    if (e.dead > 0) { e.dead -= dt; if (e.dead <= 0) { Object.assign(e, mkEnt(G.home)); e.release = 0.5; } return; }
+    if (e.dead > 0) { e.dead -= dt; if (e.dead <= 0) { Object.assign(e, mkEnt(e.spawn)); e.release = 0.5; } return; }
     if (e.release > 0) { e.release -= dt; return; }
     if (e.scared > 0) e.scared -= dt;
     const sp = e.scared > 0 ? G.speedBase * 0.55 : G.speedBase * stall * (G.burst > 0 ? 1.3 : 1);
@@ -999,7 +1010,7 @@ function render(ts) {
   // chasers
   G.enemies.forEach(e => {
     const cx = e.x * T + T / 2, cy = e.y * T + T / 2;
-    if (e.dead > 0) { emoji('💫', G.home.x * T + T / 2, G.home.y * T + T / 2, T * 0.6, 0.6); return; }
+    if (e.dead > 0) { emoji('💫', e.spawn.x * T + T / 2, e.spawn.y * T + T / 2, T * 0.6, 0.6); return; }
     const bob = Math.sin(now * 8 + cx) * T * 0.04;
     shadow(cx, cy, T);
     if (e.scared > 0) {
