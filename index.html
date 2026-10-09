@@ -587,7 +587,7 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockAt: 4, portalStay: 'round',
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', boostPads: true, padCount: 7, escapeWalls: 6 };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', boostPads: true, padCount: 7, escapeWalls: 6, portalPairs: 2 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -666,6 +666,8 @@ function buildTeacherPanel() {
     '<b>Maze</b>: a real maze with rooms, new every round, no dead ends. <b>Open</b>: wide grid, hardest to get cornered. <b>Twisty</b>: fixed mazes with more walls. <b>Mix</b>: rotates through all three.');
   section(P, 'Speed boost pads', seg([[0, 'Off'], [3, '3'], [5, '5'], [7, '7']], S.boostPads ? S.padCount : 0, v => { S.boostPads = v > 0; if (v) S.padCount = v; saveSettings(); }),
     'How many pads are on the map. Pads stay in the same spots all round and can be used again and again (they recharge for 3 seconds after each use). Running over a pad = faster for 3 seconds.');
+  section(P, 'Color portal pairs', seg([[0, 'Off'], [1, '1'], [2, '2'], [3, '3']], S.portalPairs, v => { S.portalPairs = v; saveSettings(); }),
+    'Blue / red / green portals inside the maze (runner only). The purple wrap-around portals on the edges are always there.');
   section(P, 'Escape walls', seg([[0, 'Off'], [3, '3'], [6, '6'], [9, '9']], S.escapeWalls, v => { S.escapeWalls = v; saveSettings(); }),
     'Orange arrow walls the runner can go through one way. Chasers can\'t go through them.');
   section(P, 'Runner speed', seg([['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast']], S.runSpeed, v => { S.runSpeed = v; saveSettings(); }),
@@ -857,7 +859,8 @@ function placePortals() {
   };
   for (let attempt = 0; attempt < 40; attempt++) {
     G.portals = wraps.slice();
-    for (let t = 0; t < 300 && G.portals.length < wraps.length + 6; t++) {
+    const pairs = S.portalPairs === undefined ? 2 : +S.portalPairs; if (!pairs) return;
+    for (let t = 0; t < 300 && G.portals.length < wraps.length + 2 * pairs; t++) {
       const k = (G.portals.length - wraps.length) / 2, a = R.pick(cands), b = R.pick(cands);
       if (!a || !b || far(a, b) < Math.max(10, G.cols / 2)) continue;           // the two ends of a pair are far apart
       if (G.portals.some(p => far(p, a) < 4 || far(p, b) < 4)) continue;
