@@ -487,7 +487,83 @@ const MAZES_TWISTY = [
    '#####################' ]
 ];
 const MAZES = MAZES_OPEN.concat(MAZES_TWISTY);
-const mazeList = () => S.maps === 'twisty' ? MAZES_TWISTY : S.maps === 'mix' ? [MAZES_OPEN[0], MAZES_TWISTY[0], MAZES_OPEN[1], MAZES_TWISTY[1], MAZES_OPEN[2], MAZES_TWISTY[2]] : MAZES_OPEN;
+// ---------- Maze generator: a real labyrinth with the four answer rooms built in ----------
+// New maze every round. Hallways wind like a true maze, but dead ends are knocked through
+// ("braided") so the runner can't be trapped at the end of a hallway. Room 1 is always in the
+// top-left quarter, 2 top-right, 3 bottom-left, 4 bottom-right (matches the question card),
+// at a random spot inside that quarter, with one or two doorways.
+function genMaze() {
+  const W = 21, H = 15, rnd = n => Math.floor(Math.random() * n), pick = a => a[rnd(a.length)];
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const g = Array.from({ length: H }, () => Array(W).fill('#'));
+    const rooms = [
+      { id: '1', x0: pick([1, 3]), y0: pick([1, 3]) }, { id: '2', x0: pick([13, 15]), y0: pick([1, 3]) },
+      { id: '3', x0: pick([1, 3]), y0: pick([9, 11]) }, { id: '4', x0: pick([13, 15]), y0: pick([9, 11]) }
+    ];
+    const inRoom = (x, y) => rooms.find(r => x >= r.x0 && x <= r.x0 + 4 && y >= r.y0 && y <= r.y0 + 2);
+    const lat = (x, y) => x >= 1 && x <= W - 2 && y >= 1 && y <= H - 2 && x % 2 === 1 && y % 2 === 1 && !inRoom(x, y);
+    const D = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+    // carve a perfect maze from the middle
+    const seen = new Set(), key = (x, y) => x + ',' + y, stack = [[9, 7]];
+    g[7][9] = '.'; seen.add(key(9, 7));
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1];
+      const nb = D.map(([dx, dy]) => [x + dx, y + dy, dx, dy]).filter(([nx, ny]) => lat(nx, ny) && !seen.has(key(nx, ny)));
+      if (!nb.length) { stack.pop(); continue; }
+      const [nx, ny, dx, dy] = pick(nb);
+      g[y + dy / 2][x + dx / 2] = '.'; g[ny][nx] = '.'; seen.add(key(nx, ny)); stack.push([nx, ny]);
+    }
+    let total = 0; for (let y = 1; y < H; y += 2) for (let x = 1; x < W; x += 2) if (lat(x, y)) total++;
+    if (seen.size !== total) continue;
+    // braid: knock through every dead end so nothing traps the runner
+    const deg = (x, y) => D.filter(([dx, dy]) => g[y + dy / 2] && g[y + dy / 2][x + dx / 2] === '.').length;
+    for (let y = 1; y < H; y += 2) for (let x = 1; x < W; x += 2) {
+      if (!lat(x, y) || deg(x, y) !== 1) continue;
+      const opts = D.filter(([dx, dy]) => lat(x + dx, y + dy) && g[y + dy / 2][x + dx / 2] === '#');
+      if (!opts.length) continue;
+      const best = opts.filter(([dx, dy]) => deg(x + dx, y + dy) === 1);
+      const [dx, dy] = pick(best.length ? best : opts); g[y + dy / 2][x + dx / 2] = '.';
+    }
+    // a few extra loops so there are always two ways around
+    for (let k = 0; k < 5; k++) {
+      const x = 1 + 2 * rnd(10), y = 1 + 2 * rnd(7), [dx, dy] = pick(D);
+      if (lat(x, y) && lat(x + dx, y + dy)) g[y + dy / 2][x + dx / 2] = '.';
+    }
+    // rooms + doorways (two doorways on different sides that face into the maze)
+    rooms.forEach(r => {
+      for (let y = r.y0; y <= r.y0 + 2; y++) for (let x = r.x0; x <= r.x0 + 4; x++) g[y][x] = r.id;
+      const doors = [];
+      [r.x0, r.x0 + 2, r.x0 + 4].forEach(x => { if (lat(x, r.y0 - 2)) doors.push(['top', x, r.y0 - 1]); if (lat(x, r.y0 + 4)) doors.push(['bot', x, r.y0 + 3]); });
+      [r.y0, r.y0 + 2].forEach(y => { if (lat(r.x0 - 2, y)) doors.push(['left', r.x0 - 1, y]); if (lat(r.x0 + 6, y)) doors.push(['right', r.x0 + 5, y]); });
+      const a = pick(doors), b = pick(doors.filter(d => d[0] !== a[0]).concat([null]));
+      [a, b].forEach(d => { if (d) g[d[2]][d[1]] = '.'; });
+    });
+    g[7][10] = 'S'; g[7][11] = '.'; g[7][0] = 'P'; g[7][W - 1] = 'P';
+    // last pass: any hallway still ending in a wall gets knocked through (into a hallway or a room)
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      if (g[y][x] !== '.' && g[y][x] !== 'S') continue;
+      const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => g[y + dy][x + dx] !== '#').length;
+      if (n >= 2) continue;
+      const opts = D.filter(([dx, dy]) => { const wx = x + dx / 2, wy = y + dy / 2, tx = x + dx, ty = y + dy;
+        return g[wy][wx] === '#' && tx >= 1 && tx <= W - 2 && ty >= 1 && ty <= H - 2 && g[ty][tx] !== '#'; });
+      if (opts.length) { const [dx, dy] = pick(opts); g[y + dy / 2][x + dx / 2] = '.'; }
+    }
+    // final check: every open square reachable from the start
+    const open = []; g.forEach((row, y) => row.forEach((c, x) => { if (c !== '#') open.push(key(x, y)); }));
+    const vis = new Set([key(10, 7)]), q = [[10, 7]];
+    while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (g[ny] && g[ny][nx] && g[ny][nx] !== '#' && !vis.has(key(nx, ny))) { vis.add(key(nx, ny)); q.push([nx, ny]); } } }
+    if (vis.size !== open.length) continue;
+    return g.map(r => r.join(''));
+  }
+  return MAZES_OPEN[0];
+}
+const mazeFor = round => {
+  const t = S.mapType;
+  if (t === 'open') return MAZES_OPEN[(round - 1) % MAZES_OPEN.length];
+  if (t === 'twisty') return MAZES_TWISTY[(round - 1) % MAZES_TWISTY.length];
+  if (t === 'mix') { const k = (round - 1) % 3; return k === 0 ? genMaze() : k === 1 ? MAZES_OPEN[Math.floor((round - 1) / 3) % 3] : MAZES_TWISTY[Math.floor((round - 1) / 3) % 3]; }
+  return genMaze();
+};
 // 1-4 = answer rooms (runner only; one doorway each). Rooms sit in the same corners in every maze.
 const isRoom = c => c >= '1' && c <= '4';
 
@@ -514,7 +590,7 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, maps: 'open' };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze' };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -588,8 +664,8 @@ function buildTeacherPanel() {
   });
   section(P, 'Substeps', subs, 'Questions are mixed evenly across the substeps you check.');
   section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
-  section(P, 'Maps', seg([['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.maps, v => { S.maps = v; saveSettings(); }),
-    '<b>Open</b>: no dead ends, hard to get cornered (easiest). <b>Twisty</b>: more walls and dead ends. <b>Mix</b>: switches between them each round.');
+  section(P, 'Maps', seg([['maze', 'Maze'], ['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.mapType, v => { S.mapType = v; saveSettings(); }),
+    '<b>Maze</b>: a real maze with rooms, new every round, no dead ends. <b>Open</b>: wide grid, hardest to get cornered. <b>Twisty</b>: fixed mazes with more walls. <b>Mix</b>: rotates through all three.');
   section(P, 'Runner speed', seg([['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast']], S.runSpeed, v => { S.runSpeed = v; saveSettings(); }),
     'Chasers are always slower than the runner, and their speed scales with this setting.');
   section(P, 'Chaser difficulty', seg(Object.entries(DIFF).map(([k, d]) => [k, d.name]), S.diff, v => { S.diff = v; saveSettings(); $('#diffHint').textContent = DIFF[v].desc + '. Each new round adds a little speed, and an extra chaser every other round.'; }),
@@ -666,8 +742,10 @@ function newGame() {
   showScreen('game'); setupDpad(); startRound();
 }
 function startRound() {
-  const ml = mazeList(); const m = ml[(G.round - 1) % ml.length];
+  const m = mazeFor(G.round);
   G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
+  { const mx = Math.floor(G.cols / 2); G.grid[0][mx] = 'P'; G.grid[G.rows - 1][mx] = 'P';
+    if (G.grid[1][mx] === '#') G.grid[1][mx] = '.'; if (G.grid[G.rows - 2][mx] === '#') G.grid[G.rows - 2][mx] = '.'; }
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
     const c = G.grid[y][x];
     if (c === 'S') G.start = { x, y }; else if (c === 'P') G.portals.push({ x, y });
@@ -830,7 +908,8 @@ function stepEnt(e, speed, dt, choose) {
 }
 function playerChoose(e) {
   if (cell(e.x, e.y) === 'P') {
-    const o = G.portals.find(p => p.x !== e.x || p.y !== e.y);
+    const vert = e.y === 0 || e.y === G.rows - 1;
+    const o = G.portals.find(p => (p.x !== e.x || p.y !== e.y) && ((p.y === 0 || p.y === G.rows - 1) === vert));
     if (o) { e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; SFX.portal(); }
   }
   if (held.length) {
@@ -859,7 +938,8 @@ function computeDist() {
   const n = G.rows * G.cols; if (!G.dist || G.dist.length !== n) G.dist = new Array(n);
   G.dist.fill(999);
   const sx = Math.round(G.player.x), sy = Math.round(G.player.y);
-  let startX = cell(sx, sy) === 'P' ? (sx === 0 ? 1 : G.cols - 2) : sx, startY = sy;
+  let startX = sx, startY = sy;
+  if (cell(sx, sy) === 'P') { if (sx === 0) startX = 1; else if (sx === G.cols - 1) startX = G.cols - 2; else if (sy === 0) startY = 1; else startY = G.rows - 2; }
   const rc = cell(sx, sy); if (isRoom(rc)) { startX = G.rooms[rc].door.x; startY = G.rooms[rc].door.y; }
   const q = [[startX, startY]]; G.dist[startY * G.cols + startX] = 0;
   for (let h = 0; h < q.length; h++) {
@@ -1000,7 +1080,7 @@ function buildBg() {
     const c = G.grid[y][x]; if (c === '#') continue;
     for (const d of DIRS) {
       const nx = x + d.dx, ny = y + d.dy;
-      if (c === 'P' && (nx < 0 || nx >= G.cols)) continue;
+      if (c === 'P' && (nx < 0 || nx >= G.cols || ny < 0 || ny >= G.rows)) continue;
       if (cell(nx, ny) !== '#') continue;
       if (d.dx === 1) segs.push([x + 1, y, x + 1, y + 1]); else if (d.dx === -1) segs.push([x, y, x, y + 1]);
       else if (d.dy === 1) segs.push([x, y + 1, x + 1, y + 1]); else segs.push([x, y, x + 1, y]);
@@ -1030,22 +1110,27 @@ function render(ts) {
   ctx.save(); ctx.translate(ox, oy);
   // portals
   G.portals.forEach(p => {
-    const cx = p.x === 0 ? p.x * T + T * 0.2 : p.x * T + T * 0.8, cy = p.y * T + T / 2;
+    // which edge the portal sits on; draw it as a doorway on that edge
+    const edge = p.x === 0 ? 'L' : p.x === G.cols - 1 ? 'R' : p.y === 0 ? 'T' : 'B';
+    const off = { L: [-0.3, 0], R: [0.3, 0], T: [0, -0.3], B: [0, 0.3] }[edge];
+    const cx = p.x * T + T / 2 + off[0] * T, cy = p.y * T + T / 2 + off[1] * T;
+    ctx.save(); ctx.translate(cx, cy); if (edge === 'T' || edge === 'B') ctx.rotate(Math.PI / 2);
     if (G.portalOpen > 0) {
       const s = 1 + 0.06 * Math.sin(now * 6);
       ctx.save(); ctx.shadowColor = pal.glow; ctx.shadowBlur = T * 0.8;
-      const pg = ctx.createRadialGradient(cx, cy, 1, cx, cy, T * 0.5);
+      const pg = ctx.createRadialGradient(0, 0, 1, 0, 0, T * 0.5);
       pg.addColorStop(0, '#ffffff'); pg.addColorStop(0.45, pal.glow); pg.addColorStop(1, 'rgba(120,80,255,.2)');
-      ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(cx, cy, T * 0.2 * s, T * 0.5 * s, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.2 * s, T * 0.5 * s, 0, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-      for (let k = 0; k < 3; k++) { const a = now * 3 + k * 2.1; sparkle(ctx, cx + Math.cos(a) * T * 0.35, cy + Math.sin(a) * T * 0.5, T * 0.12, '#fff', 0.8); }
+      for (let k = 0; k < 3; k++) { const a = now * 3 + k * 2.1; sparkle(ctx, Math.cos(a) * T * 0.35, Math.sin(a) * T * 0.5, T * 0.12, '#fff', 0.8); }
     } else {
-      ctx.fillStyle = 'rgba(20,24,36,.9)'; ctx.beginPath(); ctx.ellipse(cx, cy, T * 0.16, T * 0.44, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(20,24,36,.9)'; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.16, T * 0.44, 0, 0, 7); ctx.fill();
       ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2; ctx.stroke();
       ctx.strokeStyle = 'rgba(255,90,90,.6)'; ctx.lineWidth = 1.5;
-      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(cx - T * 0.14, cy + k * T * 0.14); ctx.lineTo(cx + T * 0.14, cy + k * T * 0.14); ctx.stroke(); }
-      emoji('🔒', p.x * T + T / 2 + (p.x === 0 ? T * 0.2 : -T * 0.2), cy, T * 0.42, 0.9);
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(-T * 0.14, k * T * 0.14); ctx.lineTo(T * 0.14, k * T * 0.14); ctx.stroke(); }
     }
+    ctx.restore();
+    if (G.portalOpen <= 0) emoji('🔒', p.x * T + T / 2 - off[0] * T * 0.5, p.y * T + T / 2 - off[1] * T * 0.5, T * 0.42, 0.9);
   });
   // answer rooms
   const reveal = G.state === 'reveal';
@@ -1189,10 +1274,11 @@ $('#qintro').addEventListener('pointerdown', ev => { ev.preventDefault(); startP
 $('#soundBtn').onclick = () => { S.sound = !S.sound; saveSettings(); refreshTitle(); };
 $('#speakBtn').onclick = () => { if (G && G.q) speak(G.q.q); };
 window.addEventListener('resize', resize);
+if (window.ResizeObserver) { let lastH = 0, lastW = 0; new ResizeObserver(() => { const w = $('#cwrap'); if (w.clientHeight !== lastH || w.clientWidth !== lastW) { lastH = w.clientHeight; lastW = w.clientWidth; resize(); } }).observe($('#cwrap')); }
 
 /* ===================================================================== BOOT */
 buildPlayerPick(); refreshTitle(); requestAnimationFrame(loop);
-window.__portalChase = { SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, placeZones, S };
+window.__portalChase = { SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, placeZones, genMaze, S };
 })();
 </script>
 </body>
