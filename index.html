@@ -64,7 +64,19 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
 .meter{flex:1;min-width:220px;text-align:center;font-weight:700;font-size:1.05rem;padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.42);color:#fff;backdrop-filter:blur(3px)}
 .meter.open{background:rgba(110,50,190,.85);color:#fff;animation:glow 1s ease-in-out infinite alternate}
 @keyframes glow{from{box-shadow:0 0 0 rgba(166,108,240,0)}to{box-shadow:0 0 22px rgba(190,140,255,.95)}}
-#toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:3;padding:10px 20px;border-radius:12px;font-weight:800;font-size:1.3rem;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:95%;overflow:hidden;text-overflow:ellipsis}
+#qintro{position:absolute;inset:0;z-index:4;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px 16px;background:#05070f;text-align:center;cursor:pointer}
+#qintro.show{display:flex}
+.qiLabel{color:var(--trim);font-weight:800;font-size:clamp(1.1rem,2.6vw,1.6rem);letter-spacing:.5px}
+.qiText{color:#fff;font-weight:800;font-size:clamp(1.6rem,4.4vw,3.2rem);line-height:1.25;max-width:1000px}
+.qiText strong{color:var(--yellow)}
+.qiGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:760px}
+.qiCell{display:flex;align-items:center;justify-content:center;gap:12px;min-height:72px;padding:12px 14px;border:4px solid;border-radius:14px;background:rgba(255,255,255,.06);color:#fff;font-weight:800;font-size:clamp(1.2rem,3vw,2rem);line-height:1.2}
+.qiCell .shape{font-size:1.1em}
+.qiCell.empty{border-color:rgba(255,255,255,.15)!important;color:rgba(255,255,255,.25)}
+.qiGo{color:#d6dcdc;font-weight:700;font-size:clamp(1rem,2.4vw,1.35rem);visibility:hidden;animation:pulseGo 1s ease-in-out infinite alternate}
+.qiGo.show{visibility:visible}
+@keyframes pulseGo{from{opacity:.55}to{opacity:1}}
+#toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:5;padding:10px 20px;border-radius:12px;font-weight:800;font-size:1.3rem;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:95%;overflow:hidden;text-overflow:ellipsis}
 #toast.show{opacity:1}
 #toast.good{background:var(--kelly);color:#04170c}
 #toast.bad{background:var(--red);color:#fff}
@@ -144,6 +156,12 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
         <button class="iconBtn" id="soundBtn" title="Sound on/off">🔊</button>
         <button class="iconBtn" id="pauseBtn" title="Pause (P)">⏸</button>
       </div>
+    </div>
+    <div id="qintro">
+      <div class="qiLabel" id="qiLabel"></div>
+      <div class="qiText" id="qiText"></div>
+      <div class="qiGrid" id="qiGrid"></div>
+      <div class="qiGo" id="qiGo">Press an arrow key (or tap) to start ▶</div>
     </div>
     <div id="toast"></div>
   </div>
@@ -619,7 +637,7 @@ function startRound() {
     e.release = 1 + i * 1.6; e.scared = 0; e.dead = 0; G.enemies.push(e);
   }
   resize(); loadQuestion(); updateHud();
-  G.state = 'countdown'; G.cd = 3; G.cdLabel = `Round ${G.round}`;
+  showIntro(`Round ${G.round} of ${S.rounds}`);
 }
 function resetPositions() {
   Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null; G.inRoom = null;
@@ -631,8 +649,23 @@ function loadQuestion() {
   G.zones = placeZones(G.q.opts);
   $('#opts').innerHTML = G.zones.slice().sort((a, b) => a.room.id.localeCompare(b.room.id)).map(z => `<span class="chip" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</span>`).join('');
   if (S.readAloud) speak(G.q.q);
+  if (G.state !== 'done') showIntro('');
   setTime(S.timer); $('#timerFill').style.width = '100%'; $('#timerFill').style.background = 'var(--kelly)';
   updateHud();
+}
+function showIntro(label) {
+  $('#qiLabel').textContent = label || `Question ${G.qi + 1} of ${S.qPerRound}`;
+  $('#qiText').innerHTML = fmtQ(G.q.q);
+  $('#qiGrid').innerHTML = ['1', '2', '3', '4'].map(id => {
+    const z = G.zones.find(z => z.room.id === id);
+    return z ? `<div class="qiCell" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</div>` : '<div class="qiCell empty">—</div>';
+  }).join('');
+  $('#qiGo').classList.remove('show'); $('#qintro').classList.add('show');
+  G.state = 'intro'; G.introT = 0;
+}
+function startPlay() {
+  if (!G || G.state !== 'intro' || G.introT < 1) return;
+  $('#qintro').classList.remove('show'); G.state = 'play'; G.qElapsed = 0;
 }
 function placeZones(opts) {
   // each room keeps its own color + shape, so a room is always "the red circle room", etc.
@@ -747,7 +780,7 @@ function computeDist() {
   }
 }
 function setDir(dx, dy) {
-  if (!G || !G.player) return; const p = G.player; p.nextDir = { dx, dy };
+  if (!G || !G.player) return; if (G.state === 'intro') startPlay(); const p = G.player; p.nextDir = { dx, dy };
   if ((p.dx && p.dx === -dx) || (p.dy && p.dy === -dy)) {
     [p.tx, p.fx] = [p.fx, p.tx]; [p.ty, p.fy] = [p.fy, p.ty]; p.dx = dx; p.dy = dy;
   }
@@ -756,6 +789,7 @@ function setDir(dx, dy) {
 /* ===================================================================== UPDATE */
 function update(dt) {
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('#toast').classList.remove('show'); }
+  if (G.state === 'intro') { G.introT += dt; if (G.introT >= 1) $('#qiGo').classList.add('show'); return; }
   if (G.state === 'countdown') { G.cd -= dt; if (G.cd <= 0) G.state = 'play'; return; }
   if (G.state === 'reveal') { G.revealT -= dt; if (G.revealT <= 0) finishReveal(); return; }
   if (G.state !== 'play') return;
@@ -978,7 +1012,7 @@ function render(ts) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = pal.trim; ctx.font = `800 ${T * 1.1}px Lexend, Verdana, sans-serif`; ctx.fillText(G.cdLabel, cx, cy - T * 1.2);
     ctx.fillStyle = '#fff'; ctx.font = `800 ${T * 2.2}px Lexend, Verdana, sans-serif`; ctx.fillText(Math.ceil(G.cd), cx, cy + T * 0.6);
-    ctx.fillStyle = '#e6e9f2'; ctx.font = `600 ${T * 0.5}px Lexend, Verdana, sans-serif`; ctx.fillText('Read the question while you wait!', cx, cy + T * 2.2);
+    ctx.fillStyle = '#e6e9f2'; ctx.font = `600 ${T * 0.5}px Lexend, Verdana, sans-serif`; ctx.fillText('Get ready!', cx, cy + T * 2.2);
   }
 }
 function loop(ts) {
@@ -1046,6 +1080,7 @@ cv.addEventListener('pointerup', ev => {
   if (Math.abs(dx) > Math.abs(dy)) setDir(Math.sign(dx), 0); else setDir(0, Math.sign(dy));
 });
 $('#pauseBtn').onclick = pause;
+$('#qintro').addEventListener('pointerdown', ev => { ev.preventDefault(); startPlay(); });
 $('#soundBtn').onclick = () => { S.sound = !S.sound; saveSettings(); refreshTitle(); };
 $('#speakBtn').onclick = () => { if (G && G.q) speak(G.q.q); };
 window.addEventListener('resize', resize);
