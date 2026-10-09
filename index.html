@@ -729,6 +729,7 @@ function lockTeacher() { teacherUnlocked = false; $('#teacherPanel').hidden = tr
 function askCode(msg) {
   $('#mbox').innerHTML = `<h2>🔒 Teacher Tools</h2><p>${msg || 'Enter the teacher code.'}</p>
     <input id="pinIn" type="text" name="pc-${Date.now()}" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly style="-webkit-text-security:disc;font:inherit;font-size:1.6rem;text-align:center;width:220px;padding:10px;border-radius:12px;border:2px solid #2f5440;background:#0b1a12;color:#fff;letter-spacing:6px">
+    <button type="button" id="pinEye" title="Show / hide the numbers" style="margin-left:8px;font-size:1.4rem;background:none;border:0;color:#fff;cursor:pointer">👁</button>
     <div class="mbtns"><button id="pinOk">Unlock</button><button class="alt" id="pinCancel">Cancel</button></div>`;
   $('#modal').classList.add('show');
   // readonly until focused + not a password field, so browser password managers can't fill it in
@@ -736,9 +737,10 @@ function askCode(msg) {
   const tryIt = () => {
     if (!inp.value.replace(/\D/g, '')) { askCode('Type the code first (numbers only).'); return; }
     if (codeHash(inp.value.replace(/\D/g, '')) === TEACHER_CODE_HASH) { teacherUnlocked = true; closeModal(); openTeacher(); }
-    else askCode('<span style="color:#ff8a8a;font-weight:700">That code didn\'t work.</span> Try again.');
+    else { const n = inp.value.replace(/\D/g, '').length; askCode(`<span style="color:#ff8a8a;font-weight:700">That code didn't work.</span> The box had ${n} number${n === 1 ? '' : 's'} in it. Tap 👁 to see what's in the box, then try again.`); }
   };
   $('#pinOk').onclick = tryIt; $('#pinCancel').onclick = closeModal;
+  $('#pinEye').onclick = () => { const shown = inp.style.webkitTextSecurity === 'none'; inp.style.webkitTextSecurity = shown ? 'disc' : 'none'; inp.focus(); };
   inp.addEventListener('keydown', ev => {
     if (ev.key === 'Enter' || ev.code === 'NumpadEnter') { ev.preventDefault(); tryIt(); return; }
     if (ev.key === 'Escape') { closeModal(); return; }
