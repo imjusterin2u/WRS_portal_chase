@@ -593,7 +593,7 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockAt: 4, portalStay: 'round',
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', boostPads: true, escapeWalls: 3 };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', boostPads: true, padCount: 7, escapeWalls: 3 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -670,8 +670,8 @@ function buildTeacherPanel() {
   section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
   section(P, 'Maps', seg([['maze', 'Maze'], ['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.mapType, v => { S.mapType = v; saveSettings(); }),
     '<b>Maze</b>: a real maze with rooms, new every round, no dead ends. <b>Open</b>: wide grid, hardest to get cornered. <b>Twisty</b>: fixed mazes with more walls. <b>Mix</b>: rotates through all three.');
-  section(P, 'Speed boost pads', seg([[true, 'On'], [false, 'Off']], S.boostPads, v => { S.boostPads = v; saveSettings(); }),
-    'One pad at the start of each round, plus a new one after every right answer (up to 3). Running over a pad = faster for 3 seconds.');
+  section(P, 'Speed boost pads', seg([[0, 'Off'], [3, '3'], [5, '5'], [7, '7']], S.boostPads ? S.padCount : 0, v => { S.boostPads = v > 0; if (v) S.padCount = v; saveSettings(); }),
+    'How many pads are on the map. They are always there: when one is used, a new one appears somewhere else. Running over a pad = faster for 3 seconds.');
   section(P, 'Escape walls', seg([[0, 'Off'], [2, '2'], [3, '3'], [4, '4']], S.escapeWalls, v => { S.escapeWalls = v; saveSettings(); }),
     'Glowing arrow walls the runner can go through one way. Chasers can\'t go through them.');
   section(P, 'Runner speed', seg([['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast']], S.runSpeed, v => { S.runSpeed = v; saveSettings(); }),
@@ -847,13 +847,13 @@ function makeEscapeWalls(n) {
   chosen.forEach(c => { G.grid[c.y][c.x] = c.axis === 'h' ? R.pick(['>', '<']) : R.pick(['v', '^']); });
 }
 function spawnPad() {
-  if (!S.boostPads || !G.pads || G.pads.length >= 3) return;
+  if (!S.boostPads || !G.pads || G.pads.length >= (S.padCount || 7)) return;
   const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
   const px = Math.round(G.player ? G.player.x : G.start.x), py = Math.round(G.player ? G.player.y : G.start.y);
   const cands = [];
   for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++) {
     if (G.grid[y][x] !== '.' || doors.includes(x + ',' + y)) continue;
-    if (Math.abs(x - px) + Math.abs(y - py) < 4 || G.pads.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 5)) continue;
+    if (Math.abs(x - px) + Math.abs(y - py) < 4 || G.pads.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) continue;
     cands.push({ x, y });
   }
   if (cands.length) G.pads.push(R.pick(cands));
@@ -861,7 +861,7 @@ function spawnPad() {
 function resetPositions(keepScared) {
   Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null; G.inRoom = null;
   G.enemies.forEach((e, i) => { Object.assign(e, mkEnt(e.spawn)); e.release = 0.6 + i * 0.6; if (!keepScared) e.scared = 0; e.dead = 0; });
-  G.boostT = 0; if (G.pads && !G.pads.length && !G.padSeeded) { G.padSeeded = true; spawnPad(); }
+  G.boostT = 0; if (G.pads && !G.padSeeded) { G.padSeeded = true; for (let k = 0; k < (S.padCount || 7); k++) spawnPad(); }
 }
 function loadQuestion() {
   G.q = G.questions[G.qi]; G.qElapsed = 0; G.lastTick = 99;
@@ -942,7 +942,6 @@ function correct() {
     }
     else toast(`✔ Correct!  +${pts}${G.streak > 1 ? `  🔥${G.streak}` : ''}`, 'good');
   } else toast(`✔ Correct!  +${pts}`, 'good');
-  spawnPad();
   advance();
 }
 function miss(chose, reason) {
@@ -1093,7 +1092,7 @@ function update(dt) {
   const tx = Math.round(p.x), ty = Math.round(p.y);
   if (G.pads && G.pads.length) {
     const k = G.pads.findIndex(pd => Math.abs(pd.x - p.x) + Math.abs(pd.y - p.y) < 0.5);
-    if (k >= 0) { G.pads.splice(k, 1); G.boostT = 3; SFX.boost(); toast('🚀 Speed boost!', 'good', 1.2); }
+    if (k >= 0) { G.pads.splice(k, 1); G.boostT = 3; SFX.boost(); toast('🚀 Speed boost!', 'good', 1.2); spawnPad(); }
   }
   if (Math.abs(p.x - tx) + Math.abs(p.y - ty) < 0.35) {
     const rc = cell(tx, ty);
