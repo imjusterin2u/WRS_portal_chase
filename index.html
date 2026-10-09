@@ -684,8 +684,20 @@ function startPlay() {
 }
 function placeZones(opts) {
   // each room keeps its own color + shape, so a room is always "the red circle room", etc.
-  const ids = R.shuffle(Object.keys(G.rooms)).slice(0, opts.length);
-  return opts.map((o, i) => ({ room: G.rooms[ids[i]], opt: o, color: COLORS[+ids[i] - 1] }));
+  // The correct answer never lands in the same room twice in a row, and rooms used less often
+  // are favored so all four corners get used, without a fixed pattern a student could predict.
+  const all = Object.keys(G.rooms), ans = G.q ? G.q.a : null;
+  G.ansCount = G.ansCount || {};
+  let ansRoom = null;
+  if (ans !== null && opts.includes(ans)) {
+    const cands = all.filter(id => id !== G.lastAnsRoom);
+    const w = cands.map(id => 1 / (1 + (G.ansCount[id] || 0)) ** 2), tot = w.reduce((a, b) => a + b, 0);
+    let r = Math.random() * tot; ansRoom = cands[cands.length - 1];
+    for (let n = 0; n < cands.length; n++) { r -= w[n]; if (r <= 0) { ansRoom = cands[n]; break; } }
+    G.ansCount[ansRoom] = (G.ansCount[ansRoom] || 0) + 1; G.lastAnsRoom = ansRoom;
+  }
+  const rest = R.shuffle(all.filter(id => id !== ansRoom));
+  return opts.map(o => { const id = o === ans && ansRoom ? ansRoom : rest.shift(); return { room: G.rooms[id], opt: o, color: COLORS[+id - 1] }; });
 }
 
 /* ===================================================================== HUD / TOAST */
@@ -1113,7 +1125,7 @@ window.addEventListener('resize', resize);
 
 /* ===================================================================== BOOT */
 buildPlayerPick(); refreshTitle(); requestAnimationFrame(loop);
-window.__portalChase = { SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, S };
+window.__portalChase = { SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, placeZones, S };
 })();
 </script>
 </body>
