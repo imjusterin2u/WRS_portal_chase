@@ -838,19 +838,35 @@ function placePortals() {
     { x: 0, y: my, pair: 'h', color: WRAP, edge: 'L' }, { x: G.cols - 1, y: my, pair: 'h', color: WRAP, edge: 'R' },
     { x: mx, y: 0, pair: 'v', color: WRAP, edge: 'T' }, { x: mx, y: G.rows - 1, pair: 'v', color: WRAP, edge: 'B' }
   ];
-  const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
-  const nearRoom = (x, y) => Object.values(G.rooms).some(r => x >= r.x0 - 1 && x <= r.x1 + 1 && y >= r.y0 - 1 && y <= r.y1 + 1);
+  // Colored portals stay at least 2 squares from every room (every doorway, not just one), and are never
+  // placed so that the only way to a room runs through one (walking onto an open portal would whisk him away).
+  const wraps = G.portals.slice();
+  const nearRoom = (x, y) => Object.values(G.rooms).some(r => x >= r.x0 - 2 && x <= r.x1 + 2 && y >= r.y0 - 2 && y <= r.y1 + 2);
   const cands = [];
   for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++)
-    if (G.grid[y][x] === '.' && !doors.includes(x + ',' + y) && !nearRoom(x, y) && Math.abs(x - G.start.x) + Math.abs(y - G.start.y) >= 3) cands.push({ x, y });
+    if (G.grid[y][x] === '.' && !nearRoom(x, y) && Math.abs(x - G.start.x) + Math.abs(y - G.start.y) >= 3) cands.push({ x, y });
   const far = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  for (let t = 0; t < 300 && G.portals.length < 10; t++) {
-    const k = (G.portals.length - 4) / 2, a = R.pick(cands), b = R.pick(cands);
-    if (far(a, b) < Math.max(10, G.cols / 2)) continue;           // the two ends of a pair are far apart
-    if (G.portals.some(p => far(p, a) < 4 || far(p, b) < 4)) continue;
-    const col = PORTAL_COLORS[k];
-    G.portals.push({ x: a.x, y: a.y, pair: k, color: col }, { x: b.x, y: b.y, pair: k, color: col });
+  const roomsReachable = () => { // walk from the start treating colored portals as blocked
+    const blocked = new Set(G.portals.filter(p => !p.edge).map(p => p.x + ',' + p.y)), seen = new Set([G.start.x + ',' + G.start.y]), q = [G.start], hit = new Set();
+    for (let h = 0; h < q.length; h++) { const c = q[h];
+      for (const d of DIRS) { const nx = c.x + d.dx, ny = c.y + d.dy, k = nx + ',' + ny, ch = cell(nx, ny);
+        if (ch === '#' || ch === 'P' || isOneWay(ch) || blocked.has(k) || seen.has(k)) continue;
+        if (isRoom(ch)) { hit.add(ch); continue; }
+        seen.add(k); q.push({ x: nx, y: ny }); } }
+    return Object.keys(G.rooms).every(id => hit.has(id));
+  };
+  for (let attempt = 0; attempt < 40; attempt++) {
+    G.portals = wraps.slice();
+    for (let t = 0; t < 300 && G.portals.length < wraps.length + 6; t++) {
+      const k = (G.portals.length - wraps.length) / 2, a = R.pick(cands), b = R.pick(cands);
+      if (!a || !b || far(a, b) < Math.max(10, G.cols / 2)) continue;           // the two ends of a pair are far apart
+      if (G.portals.some(p => far(p, a) < 4 || far(p, b) < 4)) continue;
+      const col = PORTAL_COLORS[k];
+      G.portals.push({ x: a.x, y: a.y, pair: k, color: col }, { x: b.x, y: b.y, pair: k, color: col });
+    }
+    if (roomsReachable()) return;
   }
+  G.portals = wraps; // couldn't place them safely: skip colored portals this round rather than block a room
 }
 function makeEscapeWalls(n) {
   if (!n) return;
