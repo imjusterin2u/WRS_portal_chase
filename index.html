@@ -1029,11 +1029,11 @@ function stepEnt(e, speed, dt, choose) {
 }
 const portalAt = (x, y) => (G.portals || []).find(p => p.x === x && p.y === y);
 function partner(x, y) { const p = portalAt(x, y); return p && G.portals.find(o => o.pair === p.pair && o !== p); }
-function teleport(e, sound) {
+function teleport(e, sound, wrapOnly) {
   // stepping onto an open portal sends you to the same-colored one; you don't bounce back until you step off
   const here = portalAt(e.x, e.y);
   if (!here) { e.tpLock = null; return; }
-  if (G.portalOpen <= 0 || e.tpLock === here) return;
+  if (G.portalOpen <= 0 || e.tpLock === here || (wrapOnly && !here.edge)) return;
   const o = partner(e.x, e.y); if (!o) return;
   e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; e.tpLock = o; if (sound) SFX.portal();
 }
@@ -1054,7 +1054,7 @@ function playerChoose(e) {
 let held = []; // arrow keys currently held down, most recent first
 const DIRS = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
 function enemyChoose(e) {
-  teleport(e, false);
+  teleport(e, false, true); // chasers can only use the purple wrap-around portals
   const dirs = DIRS.filter(d => passE(e.x + d.dx, e.y + d.dy));
   let opts = dirs.filter(d => !((e.dx || e.dy) && d.dx === -e.dx && d.dy === -e.dy));
   if (!opts.length) opts = dirs; if (!opts.length) return null;
@@ -1074,7 +1074,7 @@ function computeDist() {
     const [x, y] = q[h]; const dv = G.dist[y * G.cols + x];
     for (const d of DIRS) { const nx = x + d.dx, ny = y + d.dy;
       if (passE(nx, ny) && G.dist[ny * G.cols + nx] > dv + 1) { G.dist[ny * G.cols + nx] = dv + 1; q.push([nx, ny]); } }
-    if (G.portalOpen > 0 && portalAt(x, y)) { const o = partner(x, y); if (o && G.dist[o.y * G.cols + o.x] > dv + 1) { G.dist[o.y * G.cols + o.x] = dv + 1; q.push([o.x, o.y]); } }
+    if (G.portalOpen > 0 && portalAt(x, y) && portalAt(x, y).edge) { const o = partner(x, y); if (o && G.dist[o.y * G.cols + o.x] > dv + 1) { G.dist[o.y * G.cols + o.x] = dv + 1; q.push([o.x, o.y]); } }
   }
 }
 function setDir(dx, dy) {
@@ -1137,9 +1137,23 @@ function update(dt) {
   }
   const tx = Math.round(p.x), ty = Math.round(p.y);
   if (G.pads && G.pads.length) {
-    G.pads.forEach(pd => { if (pd.cool > 0) pd.cool -= dt; });
+    G.pads.forEach(pd => { if (pd.cool > 0) pd.cool -= dt; if (Math.abs(pd.x - p.x) + Math.abs(pd.y - p.y) > 1) pd.warned = false; });
+    // a chaser AHEAD of the runner (in the direction he's moving, down the same hallway, within 5 squares)
+    // switches the pad off so he doesn't rocket into it. A chaser behind him never does: boosts are for getting away.
+    const chaserAhead = pd => {
+      if (!p.dx && !p.dy) return false;
+      for (let k = 0; k <= 5; k++) {
+        const x = pd.x + p.dx * k, y = pd.y + p.dy * k;
+        if (k > 0 && !passE(x, y) && !isRoom(cell(x, y))) return false; // wall: nothing further can be in the way
+        if (G.enemies.some(e => !(e.dead > 0) && !(e.release > 0) && !(e.scared > 0) && Math.abs(e.x - x) < 0.6 && Math.abs(e.y - y) < 0.6)) return true;
+      }
+      return false;
+    };
     const pd = G.pads.find(pd => !(pd.cool > 0) && Math.abs(pd.x - p.x) + Math.abs(pd.y - p.y) < 0.5);
-    if (pd) { pd.cool = 3; G.boostT = 3; SFX.boost(); toast('🚀 Speed boost!', 'good', 1.2); }
+    if (pd) {
+      if (chaserAhead(pd)) { if (!pd.warned) { pd.warned = true; toast('⚠️ Chaser ahead! No boost', 'bad', 1); } }
+      else { pd.cool = 3; G.boostT = 3; SFX.boost(); toast('🚀 Speed boost!', 'good', 1.2); }
+    }
   }
   if (Math.abs(p.x - tx) + Math.abs(p.y - ty) < 0.35) {
     const rc = cell(tx, ty);
