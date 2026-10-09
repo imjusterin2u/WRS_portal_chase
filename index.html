@@ -315,7 +315,7 @@ const SUBSTEPS = {
         return item('Which word is spelled correctly?', w, [single, w.slice(0, -1) + 'ey', single.slice(0, -1) + 'ee']); }
       const w = R.pick(OPENSPELL53); const dbl = w.replace(/^([^aeiou]*[aeiou])([^aeiou])/, '$1$2$2');
       return item('Which word is spelled correctly?', w, [dbl, w.slice(0, -1) + 'ey', w.slice(0, -1) + 'ee']); },
-    () => item(`Why are there two consonants in *${R.pick(DOUBLE53)}*?`, 'to close the first syllable so the vowel is short', ['to make the first vowel long', 'because y says /ī/', 'because it has a suffix'])
+    () => item(`Why are there two consonants in *${R.pick(DOUBLE53)}*?`, 'to close the first syllable', ['to make the first vowel long', 'because y says /ī/', 'because it has a suffix'])
   ]},
   '5.4': { name: 'Multisyllabic words with open, closed & v-e syllables (volcano) & prefixes added', gens: [
     () => { const [w, d] = R.pick(MULTI54); const n = d.split('|').length;
@@ -373,46 +373,54 @@ const SUBSTEPS = {
 /* ===================================================================== MAZES */
 // # wall   . path   P portal (left/right pair)   S runner start   E chaser home
 const MAZES = [
- [ '###################',
-   '#........#........#',
-   '#.##.###.#.###.##.#',
-   '#.................#',
-   '#.##.#.#####.#.##.#',
-   '#....#...#...#....#',
-   'P...##.#...#.##...P',
-   '#.#....#.E.#....#.#',
-   '#.#.##.#####.##.#.#',
-   '#........S........#',
-   '#.##.###.#.###.##.#',
-   '#....#.......#....#',
-   '###################' ],
- [ '###################',
-   '#...#.........#...#',
-   '#.#.#.###.###.#.#.#',
-   '#.#.....#.#.....#.#',
-   '#.###.#.....#.###.#',
-   '#.....#.###.#.....#',
-   'P.###...#E#...###.P',
-   '#.#...#.....#...#.#',
-   '#.#.###.###.###.#.#',
-   '#.........S.......#',
-   '#.###.#.###.#.###.#',
-   '#.....#.....#.....#',
-   '###################' ],
- [ '###################',
-   '#.................#',
-   '#.###.#.###.#.###.#',
-   '#.#...#.....#...#.#',
-   '#.#.#####.#####.#.#',
-   '#.....#.....#.....#',
-   'P.###.#.#E#.#.###.P',
-   '#.....#.....#.....#',
-   '#.#.#####.#####.#.#',
-   '#.#.......S.....#.#',
-   '#.###.#.###.#.###.#',
-   '#.................#',
-   '###################' ]
+ [ '#####################',
+   '#1111#.........#2222#',
+   '#1111#.##.#.##.#2222#',
+   '##.###.##...##.###.##',
+   '#...................#',
+   '#.##.###.###.###.##.#',
+   '#....#....#....#....#',
+   'P....#.#..E..#.#....P',
+   '#.##.#....#....#.##.#',
+   '#.##.###.###.###.##.#',
+   '#...................#',
+   '##.###.##...##.###.##',
+   '#3333#.##.#.##.#4444#',
+   '#3333#....S....#4444#',
+   '#####################' ],
+ [ '#####################',
+   '#1111#.........#2222#',
+   '#1111#.###.###.#2222#',
+   '##.###...#.#...###.##',
+   '#.....#.......#.....#',
+   '#.###.#.##.##.#.###.#',
+   '#.#.......#.......#.#',
+   'P...###.#.E.#.###...P',
+   '#.#.......#.......#.#',
+   '#.###.#.##.##.#.###.#',
+   '#.....#.......#.....#',
+   '##.###...#.#...###.##',
+   '#3333#.###.###.#4444#',
+   '#3333#....S....#4444#',
+   '#####################' ],
+ [ '#####################',
+   '#1111#....#....#2222#',
+   '#1111#.##.#.##.#2222#',
+   '##.###.##...##.###.##',
+   '#...#...........#...#',
+   '#.#.#.###.#.###.#.#.#',
+   '#.#...#.......#...#.#',
+   'P...#.#.#.E.#.#.#...P',
+   '#.#...#.......#...#.#',
+   '#.#.#.###.#.###.#.#.#',
+   '#...#...........#...#',
+   '##.###.##...##.###.##',
+   '#3333#.##.#.##.#4444#',
+   '#3333#....S....#4444#',
+   '#####################' ]
 ];
+// 1-4 = answer rooms (runner only; one doorway each). Rooms sit in the same corners in every maze.
+const isRoom = c => c >= '1' && c <= '4';
 
 /* ===================================================================== SETTINGS */
 const THEMES = {
@@ -574,7 +582,7 @@ const COLORS = [
 let G = null, tile = 32, dpr = 1, last = 0, toastTimer = 0;
 
 function cell(x, y) { if (y < 0 || y >= G.rows || x < 0 || x >= G.cols) return '#'; return G.grid[y][x]; }
-const passE = (x, y) => { const c = cell(x, y); return c !== '#' && c !== 'P'; };
+const passE = (x, y) => { const c = cell(x, y); return c !== '#' && c !== 'P' && !isRoom(c); };
 const passP = (x, y) => { const c = cell(x, y); return c !== '#' && (c !== 'P' || G.portalOpen > 0); };
 function mkEnt(p) { return { x: p.x, y: p.y, fx: p.x, fy: p.y, tx: p.x, ty: p.y, dx: 0, dy: 0 }; }
 
@@ -589,6 +597,14 @@ function startRound() {
     const c = G.grid[y][x];
     if (c === 'S') G.start = { x, y }; else if (c === 'E') G.home = { x, y }; else if (c === 'P') G.portals.push({ x, y });
   }
+  G.rooms = {};
+  for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
+    const c = G.grid[y][x]; if (!isRoom(c)) continue;
+    const r = G.rooms[c] || (G.rooms[c] = { id: c, x0: x, y0: y, x1: x, y1: y, door: null });
+    r.x0 = Math.min(r.x0, x); r.y0 = Math.min(r.y0, y); r.x1 = Math.max(r.x1, x); r.y1 = Math.max(r.y1, y);
+    for (const d of DIRS) { const n = cell(x + d.dx, y + d.dy); if (n !== '#' && !isRoom(n)) r.door = { x: x + d.dx, y: y + d.dy }; }
+  }
+  G.inRoom = null;
   G.questions = buildQuestions(S.qPerRound); G.qi = 0; G.roundRight = 0; G.roundMissed = [];
   G.meter = 0; G.portalOpen = 0; G.burst = 0; G.invuln = 0;
   const pal = THEMES[S.theme].pal; $('#game').style.background = pal.sky[0]; $('#game').style.setProperty('--trim', pal.trim);
@@ -606,39 +622,22 @@ function startRound() {
   G.state = 'countdown'; G.cd = 3; G.cdLabel = `Round ${G.round}`;
 }
 function resetPositions() {
-  Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null;
+  Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null; G.inRoom = null;
   G.enemies.forEach((e, i) => { Object.assign(e, mkEnt(G.home)); e.release = 1 + i * 1.2; e.scared = 0; e.dead = 0; });
 }
 function loadQuestion() {
   G.q = G.questions[G.qi]; G.qElapsed = 0; G.lastTick = 99;
   $('#qText').innerHTML = fmtQ(G.q.q);
   G.zones = placeZones(G.q.opts);
-  $('#opts').innerHTML = G.zones.map(z => `<span class="chip" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</span>`).join('');
+  $('#opts').innerHTML = G.zones.slice().sort((a, b) => a.room.id.localeCompare(b.room.id)).map(z => `<span class="chip" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</span>`).join('');
   if (S.readAloud) speak(G.q.q);
   setTime(S.timer); $('#timerFill').style.width = '100%'; $('#timerFill').style.background = 'var(--kelly)';
   updateHud();
 }
 function placeZones(opts) {
-  const p = { x: Math.round(G.player.x), y: Math.round(G.player.y) };
-  const cands = [];
-  for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++) {
-    const c = G.grid[y][x]; if (c !== '.' && c !== 'S') continue;
-    if (Math.abs(x - G.home.x) + Math.abs(y - G.home.y) < 4) continue;
-    if (G.portals.some(q => Math.abs(q.x - x) + Math.abs(q.y - y) < 2)) continue;
-    cands.push({ x, y });
-  }
-  const colors = R.shuffle(COLORS);
-  for (const [minGap, minP] of [[6, 4], [5, 4], [4, 3], [3, 2], [1, 1]]) {
-    for (let t = 0; t < 400; t++) {
-      const pick = R.sample(cands, opts.length);
-      if (pick.some(z => Math.abs(z.x - p.x) + Math.abs(z.y - p.y) < minP)) continue;
-      let ok = true;
-      for (let i = 0; i < pick.length && ok; i++) for (let j = i + 1; j < pick.length; j++)
-        if (Math.abs(pick[i].x - pick[j].x) + Math.abs(pick[i].y - pick[j].y) < minGap) { ok = false; break; }
-      if (ok) return pick.map((z, i) => ({ x: z.x, y: z.y, opt: opts[i], color: colors[i] }));
-    }
-  }
-  return R.sample(cands, opts.length).map((z, i) => ({ x: z.x, y: z.y, opt: opts[i], color: colors[i] }));
+  // each room keeps its own color + shape, so a room is always "the red circle room", etc.
+  const ids = R.shuffle(Object.keys(G.rooms)).slice(0, opts.length);
+  return opts.map((o, i) => ({ room: G.rooms[ids[i]], opt: o, color: COLORS[+ids[i] - 1] }));
 }
 
 /* ===================================================================== HUD / TOAST */
@@ -682,7 +681,7 @@ function miss(chose, reason) {
   G.burst = 3;
   const rec = { sub: G.q.sub, q: G.q.q, a: G.q.a, chose }; G.roundMissed.push(rec); G.missedAll.push(rec);
   SFX.wrong(); toast(`${reason}  Answer: ${G.q.a}`, 'bad', 2.2);
-  G.state = 'reveal'; G.revealT = 2.2; updateHud();
+  G.invuln = 3.5; G.state = 'reveal'; G.revealT = 2.2; updateHud();
 }
 function advance() {
   G.qi++;
@@ -738,8 +737,9 @@ function computeDist() {
   const n = G.rows * G.cols; if (!G.dist || G.dist.length !== n) G.dist = new Array(n);
   G.dist.fill(999);
   const sx = Math.round(G.player.x), sy = Math.round(G.player.y);
-  const startX = cell(sx, sy) === 'P' ? (sx === 0 ? 1 : G.cols - 2) : sx;
-  const q = [[startX, sy]]; G.dist[sy * G.cols + startX] = 0;
+  let startX = cell(sx, sy) === 'P' ? (sx === 0 ? 1 : G.cols - 2) : sx, startY = sy;
+  const rc = cell(sx, sy); if (isRoom(rc)) { startX = G.rooms[rc].door.x; startY = G.rooms[rc].door.y; }
+  const q = [[startX, startY]]; G.dist[startY * G.cols + startX] = 0;
   for (let h = 0; h < q.length; h++) {
     const [x, y] = q[h]; const dv = G.dist[y * G.cols + x];
     for (const d of DIRS) { const nx = x + d.dx, ny = y + d.dy;
@@ -796,8 +796,14 @@ function update(dt) {
   }
   const tx = Math.round(p.x), ty = Math.round(p.y);
   if (Math.abs(p.x - tx) + Math.abs(p.y - ty) < 0.35) {
-    const z = G.zones.find(z => z.x === tx && z.y === ty);
-    if (z) { if (z.opt === G.q.a) correct(); else miss(z.opt, '✖ Not quite.'); }
+    const rc = cell(tx, ty);
+    if (!isRoom(rc)) G.inRoom = null;
+    else if (rc !== G.inRoom) {
+      G.inRoom = rc;
+      const z = G.zones.find(z => z.room.id === rc);
+      if (!z) toast('This room is empty this time', 'info', 1.2);
+      else if (z.opt === G.q.a) correct(); else miss(z.opt, '✖ Not quite.');
+    }
   }
 }
 
@@ -910,17 +916,40 @@ function render(ts) {
       emoji('🔒', p.x * T + T / 2 + (p.x === 0 ? T * 0.2 : -T * 0.2), cy, T * 0.42, 0.9);
     }
   });
-  // answer pads
+  // answer rooms
   const reveal = G.state === 'reveal';
-  G.zones.forEach(z => {
-    const isA = z.opt === G.q.a; const dim = reveal && !isA;
-    const pulse = reveal && isA ? 0.1 * Math.sin(now * 10) : 0.03 * Math.sin(now * 3 + z.x);
-    const inset = T * (0.12 - pulse), sz = T - 2 * inset;
-    ctx.save(); ctx.globalAlpha = dim ? 0.25 : 1; ctx.shadowColor = z.color.c; ctx.shadowBlur = T * 0.5;
-    ctx.fillStyle = z.color.c; rr(z.x * T + inset, z.y * T + inset, sz, sz, T * 0.18); ctx.fill(); ctx.restore();
-    ctx.globalAlpha = dim ? 0.25 : 1; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; rr(z.x * T + inset, z.y * T + inset, sz, sz, T * 0.18); ctx.stroke();
-    ctx.fillStyle = '#0b0f1e'; ctx.font = `bold ${T * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(z.color.shape, z.x * T + T / 2, z.y * T + T / 2 + 1); ctx.globalAlpha = 1;
+  Object.values(G.rooms).forEach(r => {
+    const z = G.zones.find(z => z.room === r);
+    const x = r.x0 * T, y = r.y0 * T, w = (r.x1 - r.x0 + 1) * T, h = (r.y1 - r.y0 + 1) * T;
+    const dim = !z || (reveal && z.opt !== G.q.a);
+    const pulse = reveal && z && z.opt === G.q.a ? 0.5 + 0.5 * Math.sin(now * 10) : 0;
+    ctx.save();
+    if (z) {
+      ctx.globalAlpha = dim ? 0.22 : 0.5 + 0.3 * pulse; ctx.fillStyle = z.color.c; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+      ctx.globalAlpha = dim ? 0.3 : 1; ctx.shadowColor = z.color.c; ctx.shadowBlur = dim ? 0 : T * 0.4;
+      ctx.strokeStyle = z.color.c; ctx.lineWidth = 3; ctx.strokeRect(x + T * 0.16, y + T * 0.16, w - T * 0.32, h - T * 0.32);
+    } else { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x + 2, y + 2, w - 4, h - 4); }
+    ctx.restore();
+    if (z) {
+      ctx.globalAlpha = dim ? 0.3 : 1;
+      ctx.fillStyle = z.color.c; ctx.beginPath(); ctx.arc(x + T * 0.42, y + T * 0.42, T * 0.3, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#0b0f1e'; ctx.font = `bold ${T * 0.34}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(z.color.shape, x + T * 0.42, y + T * 0.44);
+      const words = z.opt.split(' '), maxW = w - T * 0.5, maxH = h - T * 0.35;
+      let fs = T * 0.8, lines = [z.opt];
+      for (; fs > 9; fs -= 1) {
+        ctx.font = `800 ${fs}px Lexend, Verdana, sans-serif`; lines = []; let cur = '';
+        for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = wd; } }
+        lines.push(cur);
+        if (lines.every(l => ctx.measureText(l).width <= maxW) && lines.length * fs * 1.12 <= maxH) break;
+      }
+      ctx.save(); ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 6;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const lh = fs * 1.12, cy0 = y + h / 2 - (lines.length - 1) * lh / 2;
+      lines.forEach((l, i) => ctx.fillText(l, x + w / 2, cy0 + i * lh + 1));
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
   });
   // chasers
   G.enemies.forEach(e => {
@@ -942,19 +971,6 @@ function render(ts) {
     const hg = ctx.createRadialGradient(px, py, 0, px, py, T * 0.6); hg.addColorStop(0, 'rgba(255,255,255,.45)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(px, py, T * 0.6, 0, 7); ctx.fill(); emoji(S.player, px, py, T * 0.86);
   }
-  // answer labels
-  G.zones.forEach(z => {
-    if (reveal && z.opt !== G.q.a) return;
-    let fs = Math.max(13, T * 0.5); ctx.font = `700 ${fs}px Lexend, Verdana, sans-serif`;
-    let tw = ctx.measureText(z.opt).width; const maxW = T * 6;
-    if (tw > maxW) { fs = fs * maxW / tw; ctx.font = `700 ${fs}px Lexend, Verdana, sans-serif`; tw = ctx.measureText(z.opt).width; }
-    const pw = tw + fs * 0.9, ph = fs * 1.5;
-    let lx = z.x * T + T / 2 - pw / 2; lx = Math.max(2, Math.min(G.cols * T - pw - 2, lx));
-    const ly = z.y < 3 ? z.y * T + T * 0.98 : z.y * T - ph + T * 0.02;
-    ctx.fillStyle = 'rgba(8,10,24,.9)'; rr(lx, ly, pw, ph, ph / 2); ctx.fill();
-    ctx.strokeStyle = z.color.c; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(z.opt, lx + pw / 2, ly + ph / 2 + 1);
-  });
   ctx.restore();
   if (G.state === 'countdown') {
     const cx = viewW / 2, cy = oy + G.rows * T / 2;
