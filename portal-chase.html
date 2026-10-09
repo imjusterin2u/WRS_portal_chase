@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal Chase</title>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --emerald:#046A38; --kelly:#0DB14B; --forest:#044E27; --celery:#B4D38C; --steel:#D6DCDC;
+  --bg:#081510; --panel:#10241a; --panel2:#163222; --text:#f4f8f5; --muted:#a8bfb0;
+  --red:#E4572E; --blue:#3A8DDE; --yellow:#F2C14E; --purple:#A66CF0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:Lexend,Verdana,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;cursor:pointer}
+.screen{display:none}
+.screen.active{display:flex}
+
+/* ---------- Title ---------- */
+#title{min-height:100%;justify-content:center;padding:24px 16px}
+.titleWrap{width:100%;max-width:760px}
+h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);letter-spacing:.5px}
+.sub{font-size:1.2rem;color:var(--muted);margin:0 0 18px}
+.how{background:var(--panel);border:2px solid var(--emerald);border-radius:16px;padding:14px 18px;margin-bottom:18px;font-size:1.08rem;line-height:1.55}
+.how b{color:var(--celery)}
+.label{font-weight:600;margin:14px 0 8px;font-size:1.05rem}
+.pickRow{display:flex;gap:10px;flex-wrap:wrap}
+.pick{font-size:2rem;width:64px;height:64px;border-radius:14px;border:3px solid #2a4a38;background:var(--panel)}
+.pick.on{border-color:var(--kelly);background:var(--panel2);box-shadow:0 0 0 3px rgba(13,177,75,.35)}
+.big{display:block;width:100%;margin:22px 0 10px;padding:18px;font-size:1.5rem;font-weight:800;border:0;border-radius:16px;background:var(--kelly);color:#04170c}
+.big:disabled{background:#3b4a41;color:#8a9a90;cursor:not-allowed}
+.ghostBtn{width:100%;padding:12px;font-size:1.05rem;border-radius:12px;border:2px solid #2f5440;background:transparent;color:var(--muted)}
+.warn{color:var(--yellow);font-weight:600;margin-top:6px}
+
+/* ---------- Teacher panel ---------- */
+#teacherPanel{background:var(--panel);border:2px solid #2f5440;border-radius:16px;padding:6px 18px 18px;margin-top:12px}
+#teacherPanel h2{font-size:1.25rem;color:var(--celery);margin:14px 0 4px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{padding:10px 14px;border-radius:10px;border:2px solid #2f5440;background:var(--panel2);color:var(--text);font-size:1rem}
+.seg button.on{background:var(--emerald);border-color:var(--kelly);font-weight:700}
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.subs label{display:flex;gap:10px;align-items:flex-start;background:var(--panel2);border-radius:10px;padding:10px;cursor:pointer;line-height:1.35}
+.subs input{width:20px;height:20px;margin-top:2px;accent-color:var(--kelly);flex:none}
+.toggle{display:flex;gap:10px;align-items:center;margin:8px 0;cursor:pointer}
+.toggle input{width:22px;height:22px;accent-color:var(--kelly)}
+.hint{color:var(--muted);font-size:.92rem;margin:4px 0 0}
+#preview{margin-top:10px;font-size:.98rem;line-height:1.5}
+#preview .pq{background:var(--panel2);border-radius:10px;padding:8px 12px;margin:6px 0}
+#preview .pa{color:var(--celery)}
+
+/* ---------- Game ---------- */
+#game{height:100vh;height:100dvh;flex-direction:column;padding:8px 10px 10px;gap:8px}
+.hud{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-weight:600;font-size:1.05rem}
+.hud .sp{flex:1}
+.hud .pill{background:var(--panel);border-radius:999px;padding:6px 12px}
+.iconBtn{background:var(--panel);border:2px solid #2f5440;color:var(--text);border-radius:10px;font-size:1.2rem;width:44px;height:40px}
+.qcard{background:var(--panel);border:2px solid var(--emerald);border-radius:14px;padding:10px 14px}
+.qtop{display:flex;gap:10px;align-items:flex-start}
+.qnum{color:var(--muted);font-size:.9rem;white-space:nowrap;padding-top:6px}
+.qtext{flex:1;font-size:clamp(1.15rem,2.6vw,1.6rem);font-weight:600;line-height:1.3}
+.qtext strong{color:var(--yellow);font-size:1.12em}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{display:flex;align-items:center;gap:8px;background:var(--panel2);border-radius:10px;padding:6px 12px;font-size:clamp(1.05rem,2.3vw,1.4rem);font-weight:700;border:3px solid transparent}
+.chip .shape{font-size:1.1em}
+.timer{height:10px;background:#213a2c;border-radius:6px;margin-top:10px;overflow:hidden}
+#timerFill{height:100%;width:100%;background:var(--kelly);transition:background .3s}
+.meter{text-align:center;font-weight:700;font-size:1.1rem;padding:6px;border-radius:10px;background:var(--panel)}
+.meter.open{background:#3d1f66;color:#f1e3ff;animation:glow 1s ease-in-out infinite alternate}
+@keyframes glow{from{box-shadow:0 0 0 rgba(166,108,240,0)}to{box-shadow:0 0 18px rgba(166,108,240,.8)}}
+.cwrap{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+#cv{display:block;border-radius:10px;touch-action:none}
+#toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:12px;font-weight:800;font-size:1.3rem;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:95%;overflow:hidden;text-overflow:ellipsis}
+#toast.show{opacity:1}
+#toast.good{background:var(--kelly);color:#04170c}
+#toast.bad{background:var(--red);color:#fff}
+#toast.info{background:var(--purple);color:#fff}
+.dpad{display:none;justify-content:center;gap:6px;align-items:center}
+.dpad.show{display:flex}
+.dpad .col{display:flex;flex-direction:column;gap:6px}
+.dpad button{width:64px;height:56px;font-size:1.6rem;border-radius:12px;border:2px solid #2f5440;background:var(--panel2);color:var(--text);touch-action:none}
+
+/* ---------- Modal ---------- */
+#modal{position:fixed;inset:0;background:rgba(3,10,6,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+#modal.show{display:flex}
+.mbox{background:var(--panel);border:3px solid var(--emerald);border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:92vh;overflow:auto;text-align:center}
+.mbox h2{margin:4px 0 10px;font-size:2rem;color:var(--celery)}
+.stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:10px 0}
+.stat{background:var(--panel2);border-radius:12px;padding:10px 16px;min-width:110px}
+.stat b{display:block;font-size:1.6rem;color:var(--yellow)}
+.missed{text-align:left;margin-top:12px}
+.missed h3{font-size:1.1rem;margin:8px 0}
+.missed .m{background:var(--panel2);border-radius:10px;padding:8px 12px;margin:6px 0;line-height:1.4}
+.missed .m .ans{color:var(--celery);font-weight:700}
+.mbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.mbtns button{padding:14px 22px;font-size:1.15rem;font-weight:700;border-radius:12px;border:0;background:var(--kelly);color:#04170c}
+.mbtns button.alt{background:var(--panel2);color:var(--text);border:2px solid #2f5440}
+</style>
+</head>
+<body>
+
+<!-- ================= TITLE ================= -->
+<div id="title" class="screen active">
+  <div class="titleWrap">
+    <h1>🌀 Portal Chase</h1>
+    <p class="sub">Wilson Steps 5 &amp; 6 · Answer to escape. Earn the portals.</p>
+    <div class="how">
+      🎯 Run into the box with the <b>right answer</b>.<br>
+      😱 A right answer makes the chasers <b>scared</b> for a few seconds. Tag them for bonus points!<br>
+      ⚡ Get <b id="howNeed">3</b> right to <b>open the portals</b> for <b id="howTime">30</b> seconds.<br>
+      ⏳ Don't wait too long. The chasers get <b>faster</b> the longer you take.
+    </div>
+    <div class="label">Pick your runner</div>
+    <div class="pickRow" id="playerPick"></div>
+    <button class="big" id="startBtn">▶ Start</button>
+    <div class="warn" id="startWarn" hidden>Pick at least one substep in Teacher Tools.</div>
+    <button class="ghostBtn" id="teacherBtn">⚙ Teacher Tools</button>
+    <div id="teacherPanel" hidden></div>
+  </div>
+</div>
+
+<!-- ================= GAME ================= -->
+<div id="game" class="screen">
+  <div class="hud">
+    <span class="pill" id="hudRound">Round 1/3</span>
+    <span class="pill" id="hudScore">⭐ 0</span>
+    <span class="pill" id="hudHearts">❤️❤️❤️</span>
+    <span class="sp"></span>
+    <button class="iconBtn" id="soundBtn" title="Sound on/off">🔊</button>
+    <button class="iconBtn" id="pauseBtn" title="Pause (P)">⏸</button>
+  </div>
+  <div class="qcard">
+    <div class="qtop">
+      <div class="qtext" id="qText"></div>
+      <button class="iconBtn" id="speakBtn" title="Read the question aloud">🗣️</button>
+    </div>
+    <div class="opts" id="opts"></div>
+    <div class="timer"><div id="timerFill"></div></div>
+  </div>
+  <div class="meter" id="meter"></div>
+  <div class="cwrap" id="cwrap">
+    <canvas id="cv"></canvas>
+    <div id="toast"></div>
+  </div>
+  <div class="dpad" id="dpad">
+    <button data-d="-1,0" aria-label="Left">◀</button>
+    <div class="col">
+      <button data-d="0,-1" aria-label="Up">▲</button>
+      <button data-d="0,1" aria-label="Down">▼</button>
+    </div>
+    <button data-d="1,0" aria-label="Right">▶</button>
+  </div>
+</div>
+
+<div id="modal"><div class="mbox" id="mbox"></div></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   CONTENT — Wilson Reading System Steps 5 & 6
+   Each substep has a list of question generators. Every generator returns
+   { q, a, opts }. Words wrapped in *stars* show in bold/yellow.
+   Edit the word lists below to change what students practice.
+   ===================================================================== */
+const R = {
+  pick: a => a[Math.floor(Math.random() * a.length)],
+  shuffle: a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; },
+  sample: (a, n, ex = []) => R.shuffle(a.filter(x => !ex.includes(x))).slice(0, n)
+};
+function item(q, a, d) {
+  const opts = [a];
+  for (const x of d) if (x && x !== a && !opts.includes(x) && opts.length < 4) opts.push(x);
+  return { q, a, opts: R.shuffle(opts) };
+}
+function splitAt(word, b) { let out = '', p = 0; b.forEach(i => { out += word.slice(p, i) + ' | '; p = i; }); return out + word.slice(p); }
+function divItem(q, word, div) {
+  const parts = div.split('|'); const b = []; let acc = 0;
+  parts.slice(0, -1).forEach(p => { acc += p.length; b.push(acc); });
+  const correct = splitAt(word, b); const ds = new Set(); let guard = 0;
+  while (ds.size < 3 && guard++ < 80) {
+    const nb = b.slice(); const k = Math.floor(Math.random() * nb.length);
+    nb[k] += R.pick([-2, -1, 1, 2]);
+    if (nb.some((v, i) => v <= 0 || v >= word.length || (i > 0 && v <= nb[i - 1]))) continue;
+    const s = splitAt(word, nb); if (s !== correct) ds.add(s);
+  }
+  return item(q, correct, [...ds]);
+}
+function baseItem(w, base, extra) {
+  const d = [...(extra || [])];
+  d.push(w);
+  if (base.length > 3) d.push(base.slice(0, -1));
+  d.push(w.slice(0, base.length + 1));
+  return item(`What is the <u>base word</u> in *${w}*?`, base, R.shuffle(d.filter(x => x !== base)));
+}
+const LONG = { a: '/ā/', e: '/ē/', i: '/ī/', o: '/ō/', u: '/ū/' };
+const SHORT = { a: '/ă/', e: '/ĕ/', i: '/ĭ/', o: '/ŏ/', u: '/ŭ/' };
+
+// ---------- Step 5 lists ----------
+const OPEN1 = ['go','hi','me','she','we','no','so','be','he','pro','fly','my','shy','cry','try','sky','dry'];
+const CLOSED1 = ['got','met','hit','shed','web','step','plan','crisp','fresh','clip','cup','shop','fled'];
+const VE1 = ['shape','vote','rule','pine','hope','cake','mule','theme','stove'];
+const PRE5 = { 'co-':'with, together', 'de-':'down, away from', 'e-':'out of', 'pre-':'before', 'pro-':'for, forth', 're-':'back, again' };
+const DIV52 = [['silent','si|lent'],['locate','lo|cate'],['music','mu|sic'],['moment','mo|ment'],['student','stu|dent'],
+  ['pupil','pu|pil'],['menu','men|u'],['hello','hel|lo'],['secret','se|cret'],['migrate','mi|grate'],['final','fi|nal'],
+  ['human','hu|man'],['robot','ro|bot'],['tulip','tu|lip'],['begin','be|gin'],['minus','mi|nus'],['rodent','ro|dent'],
+  ['cabin','cab|in'],['seven','sev|en'],['talent','tal|ent'],['frozen','fro|zen'],['spoken','spo|ken'],['open','o|pen']];
+const OPENFIRST52 = ['silent','locate','music','moment','student','pupil','secret','migrate','final','human','robot','tulip','begin','minus','rodent','frozen','spoken'];
+const CLOSEDFIRST52 = ['cabin','seven','talent','menu','hello','tennis','rabbit','habit','lemon','planet'];
+const PREBASE52 = [['rehire','re-','hire'],['pretest','pre-','test'],['cohost','co-','host'],['defrost','de-','frost'],
+  ['recall','re-','call'],['remix','re-','mix'],['reprint','re-','print'],['prepay','pre-','pay'],['defund','de-','fund'],['refill','re-','fill']];
+const NOPRE52 = ['robot','tulip','silent','human','music','rodent','frozen','pupil','secret'];
+const Y_E = ['baby','lady','tiny','candy','penny','silly','bunny','empty','twenty','fifty','duty','lazy','plenty','entry','gravy','belly','puppy','pony','navy','shady'];
+const Y_I = ['fly','shy','cry','sky','try','dry','my'];
+const OPENF53 = ['baby','lady','tiny','duty','lazy','pony','navy','gravy','shady'];
+const OPENSPELL53 = ['baby','lady','duty','lazy','pony','gravy','shady'];
+const CLOSEDF53 = ['penny','silly','bunny','empty','twenty','fifty','plenty','candy','belly','puppy'];
+const DOUBLE53 = ['penny','silly','bunny','belly','puppy','funny','jelly','sunny','muddy'];
+const MULTI54 = [['volcano','vol|ca|no'],['regulate','reg|u|late'],['dragonfly','drag|on|fly'],['ladybug','la|dy|bug'],
+  ['element','el|e|ment'],['instrument','in|stru|ment'],['isolate','i|so|late'],['vitamin','vi|ta|min'],['colony','col|o|ny'],
+  ['copilot','co|pi|lot'],['nonhuman','non|hu|man'],['redefine','re|de|fine'],['deregulate','de|reg|u|late'],['industry','in|dus|try'],
+  ['deposit','de|pos|it'],['republic','re|pub|lic'],['comprehend','com|pre|hend'],['decompose','de|com|pose'],
+  ['precompute','pre|com|pute'],['tornado','tor|na|do'],['potato','po|ta|to'],['revisited','re|vis|it|ed'],['babysit','ba|by|sit'],['humankind','hu|man|kind']];
+const PREADD54 = ['copilot','nonhuman','redefine','deregulate','revisit','decompose','precompute','deconstruct','noncrisis'];
+const NOPRE54 = ['volcano','vitamin','tornado','element','colony','potato','industry','instrument'];
+const COMPOUND54 = ['dragonfly','ladybug','babysit','humankind','myself','sunset','cupcake'];
+const NOTCOMP54 = ['volcano','vitamin','element','colony','tornado','deposit','republic','isolate'];
+const A_EXC = [['extra','end'],['zebra','end'],['sofa','end'],['panda','end'],['soda','end'],['tuna','end'],
+  ['antenna','end'],['comma','end'],['adopt','beginning'],['abandon','beginning'],['Alaska','beginning and end'],['agenda','beginning and end']];
+const I_EXC = [['cavity','cav|i|ty'],['indicate','in|di|cate'],['evident','ev|i|dent'],['gravity','grav|i|ty'],['candidate','can|di|date'],
+  ['investigate','in|ves|ti|gate'],['apricot','ap|ri|cot'],['latitude','lat|i|tude'],['minimum','min|i|mum'],['compliment','com|pli|ment'],['animal','an|i|mal']];
+const A_PRE = [['awake','wake'],['alive','live'],['arise','rise'],['alone','lone'],['across','cross'],['amend','mend'],['adrift','drift'],['aloft','loft']];
+const WHERE_OPTS = ['beginning','middle','end','beginning and end'];
+
+// ---------- Step 6 lists ----------
+const V_SUF = ['-able','-en','-er','-est','-ish','-or','-y'];
+const C_SUF = ['-ful','-less','-ly','-ment','-ness','-ty'];
+const SUF61 = [['useful','use','-ful'],['restless','rest','-less'],['completely','complete','-ly'],['development','develop','-ment'],
+  ['sadness','sad','-ness'],['novelty','novel','-ty'],['dependable','depend','-able'],['fallen','fall','-en'],['traveler','travel','-er'],
+  ['fastest','fast','-est'],['childish','child','-ish'],['director','direct','-or'],['rocky','rock','-y'],['helpful','help','-ful'],
+  ['endless','end','-less'],['likely','like','-ly'],['equipment','equip','-ment'],['illness','ill','-ness'],['safety','safe','-ty'],
+  ['predictable','predict','-able'],['golden','gold','-en'],['longer','long','-er'],['smallest','small','-est'],['selfish','self','-ish'],
+  ['visitor','visit','-or'],['dusty','dust','-y'],['kindness','kind','-ness'],['older','old','-er'],['lucky','luck','-y'],
+  ['editor','edit','-or'],['punishment','punish','-ment'],['investment','invest','-ment'],['suddenly','sudden','-ly'],
+  ['bravely','brave','-ly'],['hopeful','hope','-ful'],['quickly','quick','-ly'],['silently','silent','-ly'],['publisher','publish','-er']];
+const PRESUF61 = [['unwisely','un-','wise','-ly'],['unlikely','un-','like','-ly'],['unevenly','un-','even','-ly'],['unjustly','un-','just','-ly'],
+  ['indistinctly','in-','distinct','-ly'],['disrespectful','dis-','respect','-ful'],['discontentment','dis-','content','-ment'],
+  ['reinvestment','re-','invest','-ment'],['refundable','re-','fund','-able'],
+  ['subcontractor','sub-','contract','-or'],['disestablishment','dis-','establish','-ment']];
+const ED_D = ['filled','spilled','yelled','smelled','called','labeled','spelled','thrilled','drilled','chilled'];
+const ED_T = ['jumped','helped','focused','missed','wished','kicked','dressed','camped','rushed','fixed','stamped','checked','splashed','crushed','picked'];
+const ED_ED = ['landed','rented','melted','ended','printed','hunted','rested','lifted','planted','dented','handed','tested','drifted','rusted','acted'];
+const ED_BASE = { filled:'fill',spilled:'spill',yelled:'yell',smelled:'smell',called:'call',labeled:'label',spelled:'spell',thrilled:'thrill',
+  drilled:'drill',chilled:'chill',jumped:'jump',helped:'help',focused:'focus',missed:'miss',wished:'wish',kicked:'kick',dressed:'dress',
+  camped:'camp',rushed:'rush',fixed:'fix',stamped:'stamp',checked:'check',splashed:'splash',crushed:'crush',picked:'pick',landed:'land',
+  rented:'rent',melted:'melt',ended:'end',printed:'print',hunted:'hunt',rested:'rest',lifted:'lift',planted:'plant',dented:'dent',
+  handed:'hand',tested:'test',drifted:'drift',rusted:'rust',acted:'act' };
+const TWO63 = [['helpfulness','help','-ful','-ness'],['thankfulness','thank','-ful','-ness'],['carelessly','care','-less','-ly'],
+  ['hopelessly','hope','-less','-ly'],['restlessness','rest','-less','-ness'],['constructively','construct','-ive','-ly'],
+  ['effectively','effect','-ive','-ly'],['respectfully','respect','-ful','-ly'],['endlessly','end','-less','-ly'],
+  ['usefulness','use','-ful','-ness'],['helplessly','help','-less','-ly'],['selfishness','self','-ish','-ness'],
+  ['childishly','child','-ish','-ly'],['mindlessly','mind','-less','-ly'],['successfully','success','-ful','-ly'],
+  ['actively','act','-ive','-ly'],['skillfully','skill','-ful','-ly'],['restfully','rest','-ful','-ly'],['selflessness','self','-less','-ness']];
+const SUF_POOL63 = ['-ful','-less','-ly','-ness','-ive','-ish','-ment','-er'];
+const CLE64 = [['simple','sim|ple'],['whistle','whis|tle'],['castle','cas|tle'],['little','lit|tle'],['puddle','pud|dle'],['bubble','bub|ble'],
+  ['table','ta|ble'],['title','ti|tle'],['maple','ma|ple'],['candle','can|dle'],['handle','han|dle'],['gentle','gen|tle'],['sample','sam|ple'],
+  ['tumble','tum|ble'],['bugle','bu|gle'],['cradle','cra|dle'],['rifle','ri|fle'],['stable','sta|ble'],['noble','no|ble'],
+  ['bristle','bris|tle'],['thistle','this|tle'],['nestle','nes|tle'],['jungle','jun|gle'],['middle','mid|dle'],['paddle','pad|dle'],
+  ['cable','ca|ble'],['bundle','bun|dle']];
+const OPENF64 = ['table','title','maple','bugle','cradle','rifle','stable','noble','cable'];
+const CLOSEDF64 = ['simple','little','puddle','bubble','candle','handle','gentle','sample','tumble','jungle','middle','paddle','bundle'];
+const STLE = ['castle','whistle','bristle','thistle','nestle'];
+const NOTCLE64 = ['silent','rocky','helpful','sudden','robot','candy','landed','tulip'];
+const CLE_PLUS = [['castles','castle'],['whistles','whistle'],['tables','table'],['candles','candle'],['bubbles','bubble'],['unstable','stable'],['handles','handle'],['titles','title']];
+
+const SUBSTEPS = {
+  '5.1': { name: 'Open syllables in one-syllable words (go, hi, shy) & open-syllable prefixes', gens: [
+    () => item('Which word ends in an <u>open</u> syllable?', R.pick(OPEN1), R.sample(CLOSED1.concat(VE1), 3)),
+    () => item('Which word has a <u>closed</u> syllable?', R.pick(CLOSED1), R.sample(OPEN1, 3)),
+    () => { const w = R.pick(OPEN1); const v = w.slice(-1);
+      if (v === 'y') return item(`In *${w}*, the y says:`, '/ī/', ['/ĭ/', '/ē/', '/ā/']);
+      return item(`What does the vowel say in *${w}*?`, LONG[v], [SHORT[v], ...R.sample(Object.values(LONG), 2, [LONG[v]])]); },
+    () => { const p = R.pick(Object.keys(PRE5)); return item(`The prefix *${p}* means:`, PRE5[p], R.sample(Object.values(PRE5), 3, [PRE5[p]])); },
+    () => { const p = R.pick(Object.keys(PRE5)); return item(`Which prefix means *${PRE5[p]}*?`, p, R.sample(Object.keys(PRE5), 3, [p])); }
+  ]},
+  '5.2': { name: 'Open syllables in two-syllable words (silent, locate) & prefixes with base words', gens: [
+    () => { const [w, d] = R.pick(DIV52); return divItem(`How do you divide *${w}* into syllables?`, w, d); },
+    () => item('Which word has an <u>open</u> first syllable?', R.pick(OPENFIRST52), R.sample(CLOSEDFIRST52, 3)),
+    () => item('Which word has a <u>closed</u> first syllable?', R.pick(CLOSEDFIRST52), R.sample(OPENFIRST52, 3)),
+    () => item('Which word has a <u>prefix</u> added to a base word?', R.pick(PREBASE52)[0], R.sample(NOPRE52, 3)),
+    () => { const [w, p, b] = R.pick(PREBASE52); return item(`What is the <u>base word</u> in *${w}*?`, b, [p.replace('-', ''), w, w.slice(1), b.slice(0, -1)]); },
+    () => { const [w, p] = R.pick(PREBASE52); return item(`What is the <u>prefix</u> in *${w}*?`, p, R.sample(['re-','pre-','co-','de-','pro-','e-'], 3, [p])); }
+  ]},
+  '5.3': { name: 'y says /ē/ at the end of multisyllabic words (baby, penny) & double consonants', gens: [
+    () => Math.random() < 0.75
+      ? item(`In *${R.pick(Y_E)}*, the y at the end says:`, '/ē/', ['/ī/', '/ĭ/', '/ā/'])
+      : item(`In *${R.pick(Y_I)}*, the y says:`, '/ī/', ['/ē/', '/ĭ/', '/ā/']),
+    () => item('Which word has an <u>open</u> first syllable?', R.pick(OPENF53), R.sample(CLOSEDF53, 3)),
+    () => item('Which word has a <u>closed</u> first syllable?', R.pick(CLOSEDF53), R.sample(OPENF53, 3)),
+    () => { if (Math.random() < 0.5) { const w = R.pick(DOUBLE53); const single = w.replace(/(.)\1/, '$1');
+        return item('Which word is spelled correctly?', w, [single, w.slice(0, -1) + 'ey', single.slice(0, -1) + 'ee']); }
+      const w = R.pick(OPENSPELL53); const dbl = w.replace(/^([^aeiou]*[aeiou])([^aeiou])/, '$1$2$2');
+      return item('Which word is spelled correctly?', w, [dbl, w.slice(0, -1) + 'ey', w.slice(0, -1) + 'ee']); },
+    () => item(`Why are there two consonants in *${R.pick(DOUBLE53)}*?`, 'to close the first syllable so the vowel is short', ['to make the first vowel long', 'because y says /ī/', 'because it has a suffix'])
+  ]},
+  '5.4': { name: 'Multisyllabic words with open, closed & v-e syllables (volcano) & prefixes added', gens: [
+    () => { const [w, d] = R.pick(MULTI54); const n = d.split('|').length;
+      return item(`How many syllables are in *${w}*?`, String(n), ['2', '3', '4', '5'].filter(x => x !== String(n))); },
+    () => { const [w, d] = R.pick(MULTI54); return divItem(`Which shows *${w}* divided into syllables?`, w, d); },
+    () => item('Which word has a prefix <u>added</u> to a base word?', R.pick(PREADD54), R.sample(NOPRE54, 3)),
+    () => item('Which word is a <u>compound</u> word?', R.pick(COMPOUND54), R.sample(NOTCOMP54, 3))
+  ]},
+  '5.5': { name: 'Open-syllable exceptions: schwa a & i (Alaska, indicate) & prefix a-', gens: [
+    () => { const [w, where] = R.pick(A_EXC); return item(`Where is the open-syllable exception (schwa a) in *${w}*?`, where, WHERE_OPTS.filter(x => x !== where)); },
+    () => { const [w] = R.pick(A_EXC); return item(`In *${w}*, the unstressed a says:`, '/ŭ/', ['/ā/', '/ă/', '/ē/']); },
+    () => { const [w, d] = R.pick(I_EXC); const parts = d.split('|'); const k = parts.findIndex((p, i) => i > 0 && /i$/.test(p));
+      return item(`Which syllable has the schwa in *${w}*?`, parts[k], parts.filter((p, i) => i !== k)); },
+    () => item('Which word has the prefix *a-* (meaning on, in, to) added to a base word?', R.pick(A_PRE)[0], R.sample(['abandon', 'adopt', 'extra', 'zebra', 'cavity', 'animal', 'sofa'], 3)),
+    () => { const [w, b] = R.pick(A_PRE); return item(`What is the <u>base word</u> in *${w}*?`, b, ['a', w, b.slice(0, -1), w.slice(0, -1)]); },
+    () => { const [w] = R.pick(I_EXC); return item(`Where is the schwa i in *${w}*?`, 'middle', ['beginning', 'end', 'beginning and end']); }
+  ]},
+  '6.1': { name: 'Suffixes -able, -en, -er, -est, -ish, -or, -y, -ful, -less, -ly, -ment, -ness, -ty', gens: [
+    () => { const [w, b, s] = R.pick(SUF61); return baseItem(w, b, [s.replace('-', '')]); },
+    () => { const [w, , s] = R.pick(SUF61); return item(`What is the <u>suffix</u> in *${w}*?`, s, R.sample(V_SUF.concat(C_SUF), 3, [s])); },
+    () => { const v = SUF61.filter(x => V_SUF.includes(x[2])), c = SUF61.filter(x => C_SUF.includes(x[2]));
+      return Math.random() < 0.5
+        ? item('Which word has a <u>vowel</u> suffix?', R.pick(v)[0], R.sample(c.map(x => x[0]), 3))
+        : item('Which word has a <u>consonant</u> suffix?', R.pick(c)[0], R.sample(v.map(x => x[0]), 3)); },
+    () => { const [, , s] = R.pick(SUF61); return item(`Is *${s}* a vowel suffix or a consonant suffix?`, V_SUF.includes(s) ? 'vowel suffix' : 'consonant suffix', [V_SUF.includes(s) ? 'consonant suffix' : 'vowel suffix']); },
+    () => { const [w, p, b] = R.pick(PRESUF61); const pre = p.replace('-', '');
+      return item(`Read *${w}* without the suffix first. What do you say?`, pre + b, [b, w.slice(0, -1), b + (w.endsWith('ly') ? 'ly' : '')]); },
+    () => { const [w, p] = R.pick(PRESUF61); return item(`What is the <u>prefix</u> in *${w}*?`, p, R.sample(['un-', 'dis-', 'in-', 're-', 'sub-', 'pre-'], 3, [p])); }
+  ]},
+  '6.2': { name: 'Suffix -ed: /ĕd/, /d/, /t/ (labeled, focused, landed)', gens: [
+    () => { const g = R.pick([[ED_D, '/d/'], [ED_T, '/t/'], [ED_ED, '/ĕd/']]); return item(`In *${R.pick(g[0])}*, the -ed says:`, g[1], ['/d/', '/t/', '/ĕd/']); },
+    () => { const groups = { '/d/': ED_D, '/t/': ED_T, '/ĕd/': ED_ED }; const s = R.pick(Object.keys(groups));
+      const others = Object.keys(groups).filter(k => k !== s);
+      return item(`Which word's -ed says *${s}*?`, R.pick(groups[s]), [R.pick(groups[others[0]]), R.pick(groups[others[1]]), R.pick(groups[R.pick(others)])]); },
+    () => { const w = R.pick(ED_D.concat(ED_T, ED_ED)); return baseItem(w, ED_BASE[w], ['ed']); }
+  ]},
+  '6.3': { name: 'Two suffixes on an unchanging base (helpfulness, constructively)', gens: [
+    () => { const [w, , s1, s2] = R.pick(TWO63); const a = `${s1} + ${s2}`; const d = [`${s2} + ${s1}`];
+      while (d.length < 3) { const x = R.pick(SUF_POOL63), y = R.pick(SUF_POOL63); const c = `${x} + ${y}`; if (x !== y && c !== a && !d.includes(c)) d.push(c); }
+      return item(`What <u>two suffixes</u> are in *${w}*?`, a, d); },
+    () => { const [w, b, s1] = R.pick(TWO63); return baseItem(w, b, [b + s1.replace('-', '')]); },
+    () => { const [w, b, s1, s2] = R.pick(TWO63); const mid = b + s1.replace('-', '');
+      return item(`Take the last suffix off *${w}*. What word is left?`, mid, [b, b + s2.replace('-', ''), w.slice(0, -1)]); }
+  ]},
+  '6.4': { name: 'Consonant-le syllable (simple, table), -stle exception, prefixes & -s', gens: [
+    () => { const [w, d] = R.pick(CLE64); return divItem(`How do you divide *${w}* into syllables?`, w, d); },
+    () => item('Which word has an <u>open</u> first syllable?', R.pick(OPENF64), R.sample(CLOSEDF64, 3)),
+    () => item('Which word has a <u>closed</u> first syllable?', R.pick(CLOSEDF64), R.sample(OPENF64, 3)),
+    () => { const w = R.pick(STLE); return item(`In *${w}*, which letter do you <u>not</u> hear in -stle?`, 't', ['s', 'l']); },
+    () => item('Which word ends in a <u>consonant-le</u> syllable?', R.pick(CLE64)[0], R.sample(NOTCLE64, 3)),
+    () => { const [w, b] = R.pick(CLE_PLUS); return item(`What is the <u>base word</u> in *${w}*?`, b, [w, b.slice(0, -1), b.slice(0, -2)]); }
+  ]}
+};
+
+/* ===================================================================== MAZES */
+// # wall   . path   P portal (left/right pair)   S runner start   E chaser home
+const MAZES = [
+ [ '###################',
+   '#........#........#',
+   '#.##.###.#.###.##.#',
+   '#.................#',
+   '#.##.#.#####.#.##.#',
+   '#....#...#...#....#',
+   'P...##.#...#.##...P',
+   '#.#....#.E.#....#.#',
+   '#.#.##.#####.##.#.#',
+   '#........S........#',
+   '#.##.###.#.###.##.#',
+   '#....#.......#....#',
+   '###################' ],
+ [ '###################',
+   '#...#.........#...#',
+   '#.#.#.###.###.#.#.#',
+   '#.#.....#.#.....#.#',
+   '#.###.#.....#.###.#',
+   '#.....#.###.#.....#',
+   'P.###...#E#...###.P',
+   '#.#...#.....#...#.#',
+   '#.#.###.###.###.#.#',
+   '#.........S.......#',
+   '#.###.#.###.#.###.#',
+   '#.....#.....#.....#',
+   '###################' ],
+ [ '###################',
+   '#.................#',
+   '#.###.#.###.#.###.#',
+   '#.#...#.....#...#.#',
+   '#.#.#####.#####.#.#',
+   '#.....#.....#.....#',
+   'P.###.#.#E#.#.###.P',
+   '#.....#.....#.....#',
+   '#.#.#####.#####.#.#',
+   '#.#.......S.....#.#',
+   '#.###.#.###.#.###.#',
+   '#.................#',
+   '###################' ]
+];
+
+/* ===================================================================== SETTINGS */
+const THEMES = {
+  dino:  { name: 'Dinosaurs', icon: '🦖', sprites: ['🦖', '🦕', '🦖', '🦕', '🦖'], one: 'A dinosaur' },
+  alien: { name: 'Aliens',    icon: '👾', sprites: ['👾', '👽', '👾', '👽', '👾'], one: 'An alien' },
+  ghost: { name: 'Ghosts',    icon: '👻', sprites: ['👻', '👻', '👻', '👻', '👻'], one: 'A ghost' }
+};
+const DIFF = {
+  easy:   { name: 'Easy',   count: 2, speed: 2.4, smart: 0.45, scared: 7, desc: '2 slow chasers that wander a lot' },
+  medium: { name: 'Medium', count: 3, speed: 3.0, smart: 0.70, scared: 6, desc: '3 chasers that follow you most of the time' },
+  hard:   { name: 'Hard',   count: 4, speed: 3.6, smart: 0.88, scared: 5, desc: '4 fast chasers that hunt you down' }
+};
+const PLAYERS = ['😎', '🐸', '🤖', '🐱', '🦊', '🐵'];
+const PLAYER_SPEED = 4.6;
+const SET_KEY = 'portalChase_settings_v1';
+const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
+  diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
+  hearts: 3, wrongDrops: true, readAloud: false, sound: true };
+function loadSettings() {
+  try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(S)); } catch (e) {} }
+let S = loadSettings();
+function activeSubs() { return Object.keys(SUBSTEPS).filter(k => S.subs[k] && (S.step === 'both' || k[0] === S.step)); }
+
+/* ===================================================================== HELPERS */
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// allow the small set of tags used in questions (<u>), escape everything else, *word* -> bold
+const fmtQ = t => esc(t).replace(/&lt;(\/?)u&gt;/g, '<$1u>').replace(/\*(.+?)\*/g, '<strong>$1</strong>');
+const plainQ = t => t.replace(/<\/?u>/g, '').replace(/\*/g, '');
+const SOUNDNAME = { 'ē': 'long e', 'ī': 'long i', 'ō': 'long o', 'ā': 'long a', 'ū': 'long u', 'ŭ': 'short u', 'ĭ': 'short i', 'ĕ': 'short e', 'ŏ': 'short o', 'ă': 'short a', 'ĕd': 'ed', 'd': 'd', 't': 't' };
+const speakable = t => plainQ(t).replace(/\/([^\/\s]+)\//g, (m, p) => (SOUNDNAME[p] || p) + ' sound').replace(/ \| /g, ' ');
+function speak(t) {
+  try { if (!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(speakable(t)); u.rate = 0.9; speechSynthesis.speak(u); } catch (e) {}
+}
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+
+/* ===================================================================== SOUND */
+let AC = null;
+function tone(f, d, type = 'square', v = 0.06, when = 0) {
+  if (!S.sound) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain(); const t0 = AC.currentTime + when;
+    o.type = type; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d);
+  } catch (e) {}
+}
+const SFX = {
+  right: () => { tone(660, .1); tone(880, .12, 'square', .06, .1); tone(1175, .18, 'square', .06, .2); },
+  wrong: () => { tone(220, .25, 'sawtooth', .05); tone(160, .3, 'sawtooth', .05, .2); },
+  caught: () => { tone(400, .1, 'triangle', .08); tone(250, .15, 'triangle', .08, .1); tone(120, .3, 'triangle', .08, .25); },
+  eat: () => { tone(500, .06); tone(900, .1, 'square', .06, .06); },
+  portal: () => { tone(300, .12, 'sine', .08); tone(600, .15, 'sine', .08, .08); },
+  open: () => { [400, 500, 600, 800].forEach((f, i) => tone(f, .15, 'sine', .07, i * .09)); },
+  tick: () => tone(1000, .04, 'square', .03)
+};
+
+/* ===================================================================== TITLE / TEACHER UI */
+function seg(options, current, onPick) {
+  const wrap = document.createElement('div'); wrap.className = 'seg';
+  options.forEach(([val, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.innerHTML = label; if (val === current) b.classList.add('on');
+    b.onclick = () => { wrap.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); onPick(val); };
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+function section(panel, title, el, hint) {
+  const h = document.createElement('h2'); h.textContent = title; panel.appendChild(h); panel.appendChild(el);
+  if (hint) { const p = document.createElement('p'); p.className = 'hint'; p.innerHTML = hint; panel.appendChild(p); }
+}
+function toggleRow(label, key) {
+  const l = document.createElement('label'); l.className = 'toggle';
+  const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!S[key];
+  i.onchange = () => { S[key] = i.checked; saveSettings(); refreshTitle(); };
+  l.appendChild(i); l.appendChild(document.createTextNode(label)); return l;
+}
+function buildTeacherPanel() {
+  const P = $('#teacherPanel'); P.innerHTML = '';
+  section(P, 'Step', seg([['5', 'Step 5'], ['6', 'Step 6'], ['both', 'Steps 5 + 6']], S.step, v => { S.step = v; saveSettings(); buildTeacherPanel(); refreshTitle(); }));
+  const subs = document.createElement('div'); subs.className = 'subs';
+  Object.keys(SUBSTEPS).filter(k => S.step === 'both' || k[0] === S.step).forEach(k => {
+    const l = document.createElement('label'); const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!S.subs[k];
+    i.onchange = () => { S.subs[k] = i.checked; saveSettings(); refreshTitle(); };
+    l.appendChild(i); const t = document.createElement('span'); t.innerHTML = `<b>${k}</b> ${esc(SUBSTEPS[k].name)}`; l.appendChild(t); subs.appendChild(l);
+  });
+  section(P, 'Substeps', subs, 'Questions are mixed evenly across the substeps you check.');
+  section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
+  section(P, 'Chaser difficulty', seg(Object.entries(DIFF).map(([k, d]) => [k, d.name]), S.diff, v => { S.diff = v; saveSettings(); $('#diffHint').textContent = DIFF[v].desc + '. Each new round adds a little speed, and an extra chaser every other round.'; }),
+    `<span id="diffHint">${DIFF[S.diff].desc}. Each new round adds a little speed, and an extra chaser every other round.</span>`);
+  section(P, 'Questions per round', seg([6, 8, 10, 12].map(n => [n, String(n)]), S.qPerRound, v => { S.qPerRound = v; saveSettings(); }));
+  section(P, 'Number of rounds', seg([2, 3, 4, 5].map(n => [n, String(n)]), S.rounds, v => { S.rounds = v; saveSettings(); }));
+  section(P, 'Time per question', seg([20, 30, 45, 60].map(n => [n, n + ' sec']), S.timer, v => { S.timer = v; saveSettings(); }),
+    'If time runs out, it counts as a miss. Chasers speed up as the timer runs down.');
+  section(P, 'Right answers needed to open portals', seg([2, 3, 4].map(n => [n, String(n)]), S.unlockNeed, v => { S.unlockNeed = v; saveSettings(); refreshTitle(); }));
+  section(P, 'How long portals stay open', seg([20, 30, 45].map(n => [n, n + ' sec']), S.portalTime, v => { S.portalTime = v; saveSettings(); refreshTitle(); }));
+  section(P, 'Hearts', seg([3, 4, 5].map(n => [n, String(n)]), S.hearts, v => { S.hearts = v; saveSettings(); }), 'One heart comes back at the start of each new round.');
+  const opts = document.createElement('div');
+  opts.appendChild(toggleRow('A wrong answer takes away one ⚡ of portal power', 'wrongDrops'));
+  opts.appendChild(toggleRow('Read each question aloud automatically', 'readAloud'));
+  opts.appendChild(toggleRow('Sound effects', 'sound'));
+  section(P, 'Options', opts);
+  const pv = document.createElement('div');
+  const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghostBtn'; pb.textContent = '👀 Preview sample questions';
+  const out = document.createElement('div'); out.id = 'preview';
+  pb.onclick = () => {
+    const subsA = activeSubs(); if (!subsA.length) { out.textContent = 'No substeps selected.'; return; }
+    out.innerHTML = buildQuestions(8).map(q => `<div class="pq"><b>${q.sub}</b> · ${fmtQ(q.q)}<br>${q.opts.map(o => o === q.a ? `<span class="pa">✔ ${esc(o)}</span>` : esc(o)).join(' &nbsp;·&nbsp; ')}</div>`).join('');
+  };
+  pv.appendChild(pb); pv.appendChild(out); section(P, 'Check the content', pv);
+}
+function refreshTitle() {
+  $('#howNeed').textContent = S.unlockNeed; $('#howTime').textContent = S.portalTime;
+  const ok = activeSubs().length > 0; $('#startBtn').disabled = !ok; $('#startWarn').hidden = ok;
+  $('#soundBtn').textContent = S.sound ? '🔊' : '🔇';
+}
+function buildPlayerPick() {
+  const row = $('#playerPick'); row.innerHTML = '';
+  PLAYERS.forEach(p => {
+    const b = document.createElement('button'); b.className = 'pick' + (p === S.player ? ' on' : ''); b.textContent = p; b.type = 'button';
+    b.onclick = () => { S.player = p; saveSettings(); buildPlayerPick(); }; row.appendChild(b);
+  });
+}
+$('#teacherBtn').onclick = () => { const P = $('#teacherPanel'); P.hidden = !P.hidden; if (!P.hidden) buildTeacherPanel(); };
+$('#startBtn').onclick = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} newGame(); };
+
+/* ===================================================================== QUESTIONS */
+function buildQuestions(n) {
+  const subs = R.shuffle(activeSubs()); const used = new Set(G && G.usedQ ? G.usedQ : []); const out = [];
+  for (let i = 0; i < n; i++) {
+    const sub = subs[i % subs.length]; let it = null;
+    for (let t = 0; t < 12; t++) {
+      const cand = R.pick(SUBSTEPS[sub].gens)();
+      if (cand.opts.length < 2) continue;
+      const key = cand.q + '|' + cand.a; it = cand;
+      if (!used.has(key)) { used.add(key); break; }
+    }
+    it.sub = sub; out.push(it);
+  }
+  if (G) G.usedQ = used;
+  return R.shuffle(out);
+}
+
+/* ===================================================================== GAME STATE */
+const cv = $('#cv'), ctx = cv.getContext('2d');
+const COLORS = [
+  { c: '#E4572E', shape: '●', name: 'circle' }, { c: '#3A8DDE', shape: '▲', name: 'triangle' },
+  { c: '#F2C14E', shape: '■', name: 'square' }, { c: '#A66CF0', shape: '◆', name: 'diamond' }
+];
+let G = null, tile = 32, dpr = 1, last = 0, toastTimer = 0;
+
+function cell(x, y) { if (y < 0 || y >= G.rows || x < 0 || x >= G.cols) return '#'; return G.grid[y][x]; }
+const passE = (x, y) => { const c = cell(x, y); return c !== '#' && c !== 'P'; };
+const passP = (x, y) => { const c = cell(x, y); return c !== '#' && (c !== 'P' || G.portalOpen > 0); };
+function mkEnt(p) { return { x: p.x, y: p.y, fx: p.x, fy: p.y, tx: p.x, ty: p.y, dx: 0, dy: 0 }; }
+
+function newGame() {
+  G = { round: 1, score: 0, hearts: S.hearts, streak: 0, bestStreak: 0, totalRight: 0, totalAsked: 0, missedAll: [], usedQ: new Set() };
+  showScreen('game'); setupDpad(); startRound();
+}
+function startRound() {
+  const m = MAZES[(G.round - 1) % MAZES.length];
+  G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
+  for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
+    const c = G.grid[y][x];
+    if (c === 'S') G.start = { x, y }; else if (c === 'E') G.home = { x, y }; else if (c === 'P') G.portals.push({ x, y });
+  }
+  G.questions = buildQuestions(S.qPerRound); G.qi = 0; G.roundRight = 0; G.roundMissed = [];
+  G.meter = 0; G.portalOpen = 0; G.burst = 0; G.invuln = 0;
+  if (G.round > 1) G.hearts = Math.min(S.hearts, G.hearts + 1);
+  const d = DIFF[S.diff];
+  G.enemyCount = Math.min(5, d.count + Math.floor((G.round - 1) / 2));
+  G.speedBase = d.speed * (1 + 0.06 * (G.round - 1));
+  G.player = mkEnt(G.start); G.player.nextDir = null;
+  G.enemies = [];
+  for (let i = 0; i < G.enemyCount; i++) {
+    const e = mkEnt(G.home); e.sprite = THEMES[S.theme].sprites[i % 5]; e.smart = Math.max(0.3, d.smart - i * 0.07);
+    e.release = 1 + i * 1.6; e.scared = 0; e.dead = 0; G.enemies.push(e);
+  }
+  resize(); loadQuestion(); updateHud();
+  G.state = 'countdown'; G.cd = 3; G.cdLabel = `Round ${G.round}`;
+}
+function resetPositions() {
+  Object.assign(G.player, mkEnt(G.start)); G.player.nextDir = null;
+  G.enemies.forEach((e, i) => { Object.assign(e, mkEnt(G.home)); e.release = 1 + i * 1.2; e.scared = 0; e.dead = 0; });
+}
+function loadQuestion() {
+  G.q = G.questions[G.qi]; G.qElapsed = 0; G.lastTick = 99;
+  $('#qText').innerHTML = fmtQ(G.q.q);
+  G.zones = placeZones(G.q.opts);
+  $('#opts').innerHTML = G.zones.map(z => `<span class="chip" style="border-color:${z.color.c}"><span class="shape" style="color:${z.color.c}">${z.color.shape}</span>${esc(z.opt)}</span>`).join('');
+  if (S.readAloud) speak(G.q.q);
+  updateHud();
+}
+function placeZones(opts) {
+  const p = { x: Math.round(G.player.x), y: Math.round(G.player.y) };
+  const cands = [];
+  for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++) {
+    const c = G.grid[y][x]; if (c !== '.' && c !== 'S') continue;
+    if (Math.abs(x - G.home.x) + Math.abs(y - G.home.y) < 4) continue;
+    if (G.portals.some(q => Math.abs(q.x - x) + Math.abs(q.y - y) < 2)) continue;
+    cands.push({ x, y });
+  }
+  const colors = R.shuffle(COLORS);
+  for (const [minGap, minP] of [[6, 4], [5, 4], [4, 3], [3, 2], [1, 1]]) {
+    for (let t = 0; t < 400; t++) {
+      const pick = R.sample(cands, opts.length);
+      if (pick.some(z => Math.abs(z.x - p.x) + Math.abs(z.y - p.y) < minP)) continue;
+      let ok = true;
+      for (let i = 0; i < pick.length && ok; i++) for (let j = i + 1; j < pick.length; j++)
+        if (Math.abs(pick[i].x - pick[j].x) + Math.abs(pick[i].y - pick[j].y) < minGap) { ok = false; break; }
+      if (ok) return pick.map((z, i) => ({ x: z.x, y: z.y, opt: opts[i], color: colors[i] }));
+    }
+  }
+  return R.sample(cands, opts.length).map((z, i) => ({ x: z.x, y: z.y, opt: opts[i], color: colors[i] }));
+}
+
+/* ===================================================================== HUD / TOAST */
+function updateHud() {
+  $('#hudRound').textContent = `Round ${G.round}/${S.rounds} · Q ${Math.min(G.qi + 1, S.qPerRound)}/${S.qPerRound}`;
+  $('#hudScore').textContent = `⭐ ${G.score}`;
+  $('#hudHearts').textContent = '❤️'.repeat(Math.max(0, G.hearts)) + '🖤'.repeat(Math.max(0, S.hearts - G.hearts));
+  const m = $('#meter');
+  if (G.portalOpen > 0) { m.className = 'meter open'; m.textContent = `🌀 PORTALS OPEN · ${Math.ceil(G.portalOpen)}s`; }
+  else {
+    m.className = 'meter';
+    const left = S.unlockNeed - G.meter;
+    m.textContent = `Portal power ${'⚡'.repeat(G.meter)}${'⚪'.repeat(left)} · ${left} more right answer${left === 1 ? '' : 's'} to open the portals`;
+  }
+}
+function toast(msg, kind, secs = 1.4) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show ' + kind; toastTimer = secs;
+}
+
+/* ===================================================================== ANSWERING */
+function correct() {
+  G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+  const pts = 100 + Math.min(G.streak - 1, 5) * 20; G.score += pts; G.roundRight++; G.totalRight++; G.totalAsked++;
+  G.enemies.forEach(e => { if (!e.dead) { e.scared = DIFF[S.diff].scared; if (e.release <= 0 && (e.dx || e.dy)) { [e.tx, e.fx] = [e.fx, e.tx]; [e.ty, e.fy] = [e.fy, e.ty]; e.dx = -e.dx; e.dy = -e.dy; } } });
+  SFX.right();
+  if (G.portalOpen <= 0) {
+    G.meter++;
+    if (G.meter >= S.unlockNeed) { G.meter = 0; G.portalOpen = S.portalTime; SFX.open(); toast(`🌀 PORTALS OPEN for ${S.portalTime}s!  +${pts}`, 'info', 2); }
+    else toast(`✔ Correct!  +${pts}${G.streak > 1 ? `  🔥${G.streak}` : ''}`, 'good');
+  } else toast(`✔ Correct!  +${pts}`, 'good');
+  advance();
+}
+function miss(chose, reason) {
+  G.streak = 0; G.hearts--; G.totalAsked++;
+  if (S.wrongDrops && G.portalOpen <= 0) G.meter = Math.max(0, G.meter - 1);
+  G.burst = 3;
+  const rec = { sub: G.q.sub, q: G.q.q, a: G.q.a, chose }; G.roundMissed.push(rec); G.missedAll.push(rec);
+  SFX.wrong(); toast(`${reason}  Answer: ${G.q.a}`, 'bad', 2.2);
+  G.state = 'reveal'; G.revealT = 2.2; updateHud();
+}
+function advance() {
+  G.qi++;
+  if (G.qi >= S.qPerRound) { updateHud(); setTimeout(roundEnd, 350); G.state = 'done'; return; }
+  loadQuestion();
+}
+function finishReveal() {
+  if (G.hearts <= 0) return endGame(false);
+  G.state = 'play'; advance();
+}
+function caught(e) {
+  G.hearts--; G.streak = 0; SFX.caught();
+  toast(`💥 ${THEMES[S.theme].one} got you!`, 'bad', 1.6);
+  if (G.hearts <= 0) { updateHud(); G.state = 'done'; setTimeout(() => endGame(false), 900); return; }
+  resetPositions(); G.qElapsed = 0; G.invuln = 2; updateHud();
+  G.state = 'countdown'; G.cd = 1.5; G.cdLabel = 'Get ready';
+}
+
+/* ===================================================================== MOVEMENT */
+function stepEnt(e, speed, dt, choose) {
+  let move = speed * dt, guard = 0;
+  while (move > 0 && guard++ < 5) {
+    if (e.x === e.tx && e.y === e.ty) {
+      const d = choose(e);
+      if (!d) { e.dx = e.dy = 0; return; }
+      e.dx = d.dx; e.dy = d.dy; e.fx = e.x; e.fy = e.y; e.tx = e.x + d.dx; e.ty = e.y + d.dy;
+    }
+    const ddx = e.tx - e.x, ddy = e.ty - e.y, dist = Math.abs(ddx) + Math.abs(ddy);
+    if (move >= dist) { e.x = e.tx; e.y = e.ty; move -= dist; }
+    else { e.x += Math.sign(ddx) * move; e.y += Math.sign(ddy) * move; move = 0; }
+  }
+}
+function playerChoose(e) {
+  if (cell(e.x, e.y) === 'P') {
+    const o = G.portals.find(p => p.x !== e.x || p.y !== e.y);
+    if (o) { e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; SFX.portal(); }
+  }
+  const nd = e.nextDir;
+  if (nd && passP(e.x + nd.dx, e.y + nd.dy)) return nd;
+  if ((e.dx || e.dy) && passP(e.x + e.dx, e.y + e.dy)) return { dx: e.dx, dy: e.dy };
+  return null;
+}
+const DIRS = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
+function enemyChoose(e) {
+  const dirs = DIRS.filter(d => passE(e.x + d.dx, e.y + d.dy));
+  let opts = dirs.filter(d => !((e.dx || e.dy) && d.dx === -e.dx && d.dy === -e.dy));
+  if (!opts.length) opts = dirs; if (!opts.length) return null;
+  const val = d => G.dist[(e.y + d.dy) * G.cols + (e.x + d.dx)];
+  if (e.scared > 0) return Math.random() < 0.8 ? opts.reduce((a, b) => val(b) > val(a) ? b : a) : R.pick(opts);
+  return Math.random() < e.smart ? opts.reduce((a, b) => val(b) < val(a) ? b : a) : R.pick(opts);
+}
+function computeDist() {
+  const n = G.rows * G.cols; if (!G.dist || G.dist.length !== n) G.dist = new Array(n);
+  G.dist.fill(999);
+  const sx = Math.round(G.player.x), sy = Math.round(G.player.y);
+  const startX = cell(sx, sy) === 'P' ? (sx === 0 ? 1 : G.cols - 2) : sx;
+  const q = [[startX, sy]]; G.dist[sy * G.cols + startX] = 0;
+  for (let h = 0; h < q.length; h++) {
+    const [x, y] = q[h]; const dv = G.dist[y * G.cols + x];
+    for (const d of DIRS) { const nx = x + d.dx, ny = y + d.dy;
+      if (passE(nx, ny) && G.dist[ny * G.cols + nx] > dv + 1) { G.dist[ny * G.cols + nx] = dv + 1; q.push([nx, ny]); } }
+  }
+}
+function setDir(dx, dy) {
+  if (!G || !G.player) return; const p = G.player; p.nextDir = { dx, dy };
+  if ((p.dx && p.dx === -dx) || (p.dy && p.dy === -dy)) {
+    [p.tx, p.fx] = [p.fx, p.tx]; [p.ty, p.fy] = [p.fy, p.ty]; p.dx = dx; p.dy = dy;
+  }
+}
+
+/* ===================================================================== UPDATE */
+function update(dt) {
+  if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('#toast').classList.remove('show'); }
+  if (G.state === 'countdown') { G.cd -= dt; if (G.cd <= 0) G.state = 'play'; return; }
+  if (G.state === 'reveal') { G.revealT -= dt; if (G.revealT <= 0) finishReveal(); return; }
+  if (G.state !== 'play') return;
+
+  G.qElapsed += dt;
+  const frac = Math.min(1, G.qElapsed / S.timer);
+  const fill = $('#timerFill'); fill.style.width = ((1 - frac) * 100) + '%';
+  fill.style.background = frac > 0.75 ? 'var(--red)' : frac > 0.5 ? 'var(--yellow)' : 'var(--kelly)';
+  const left = Math.ceil(S.timer - G.qElapsed);
+  if (left <= 5 && left !== G.lastTick) { G.lastTick = left; SFX.tick(); }
+  if (G.qElapsed >= S.timer) { miss('(time ran out)', "⏰ Time's up!"); return; }
+
+  if (G.invuln > 0) G.invuln -= dt;
+  if (G.burst > 0) G.burst -= dt;
+  if (G.portalOpen > 0) { const before = Math.ceil(G.portalOpen); G.portalOpen -= dt;
+    if (G.portalOpen <= 0) { G.portalOpen = 0; toast('🔒 Portals closed', 'info', 1.2); updateHud(); }
+    else if (Math.ceil(G.portalOpen) !== before) updateHud(); }
+
+  computeDist();
+  stepEnt(G.player, PLAYER_SPEED, dt, playerChoose);
+  const stall = 1 + 0.6 * frac;
+  G.enemies.forEach(e => {
+    if (e.dead > 0) { e.dead -= dt; if (e.dead <= 0) { Object.assign(e, mkEnt(G.home)); e.release = 0.5; } return; }
+    if (e.release > 0) { e.release -= dt; return; }
+    if (e.scared > 0) e.scared -= dt;
+    const sp = e.scared > 0 ? G.speedBase * 0.55 : G.speedBase * stall * (G.burst > 0 ? 1.3 : 1);
+    stepEnt(e, sp, dt, enemyChoose);
+  });
+
+  const p = G.player;
+  for (const e of G.enemies) {
+    if (e.dead > 0 || e.release > 0) continue;
+    if (Math.abs(e.x - p.x) + Math.abs(e.y - p.y) < 0.7) {
+      if (e.scared > 0) { e.dead = 3; e.scared = 0; G.score += 50; SFX.eat(); toast('😆 Tagged! +50', 'good', 1); updateHud(); }
+      else if (G.invuln <= 0) { caught(e); return; }
+    }
+  }
+  const tx = Math.round(p.x), ty = Math.round(p.y);
+  if (Math.abs(p.x - tx) + Math.abs(p.y - ty) < 0.35) {
+    const z = G.zones.find(z => z.x === tx && z.y === ty);
+    if (z) { if (z.opt === G.q.a) correct(); else miss(z.opt, '✖ Not quite.'); }
+  }
+}
+
+/* ===================================================================== RENDER */
+function resize() {
+  if (!G || !G.cols) return;
+  const w = $('#cwrap').clientWidth, h = $('#cwrap').clientHeight;
+  tile = Math.max(14, Math.floor(Math.min(w / G.cols, h / G.rows)));
+  dpr = window.devicePixelRatio || 1;
+  cv.style.width = G.cols * tile + 'px'; cv.style.height = G.rows * tile + 'px';
+  cv.width = G.cols * tile * dpr; cv.height = G.rows * tile * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function emoji(ch, x, y, size, alpha = 1) {
+  ctx.globalAlpha = alpha; ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(ch, x, y); ctx.globalAlpha = 1;
+}
+function render(ts) {
+  if (!G || !G.grid) return;
+  const T = tile, now = performance.now() / 1000;
+  ctx.fillStyle = '#0d1f16'; ctx.fillRect(0, 0, G.cols * T, G.rows * T);
+  for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
+    const c = G.grid[y][x];
+    if (c === '#') { ctx.fillStyle = '#046A38'; rr(x * T + 1, y * T + 1, T - 2, T - 2, T * 0.22); ctx.fill(); ctx.strokeStyle = '#0DB14B'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    else if (c === 'P') {
+      if (G.portalOpen > 0) {
+        const g = ctx.createRadialGradient(x * T + T / 2, y * T + T / 2, 2, x * T + T / 2, y * T + T / 2, T * 0.55);
+        g.addColorStop(0, '#f6e8ff'); g.addColorStop(0.5, '#A66CF0'); g.addColorStop(1, 'rgba(80,30,140,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x * T + T / 2, y * T + T / 2, T * (0.5 + 0.06 * Math.sin(now * 6)), 0, 7); ctx.fill();
+        emoji('🌀', x * T + T / 2, y * T + T / 2, T * 0.7);
+      } else { ctx.fillStyle = '#2b3a33'; rr(x * T + 2, y * T + 2, T - 4, T - 4, 6); ctx.fill(); emoji('🔒', x * T + T / 2, y * T + T / 2, T * 0.55, 0.85); }
+    }
+  }
+  // answer zones
+  const reveal = G.state === 'reveal';
+  G.zones.forEach(z => {
+    const isA = z.opt === G.q.a; const dim = reveal && !isA;
+    ctx.globalAlpha = dim ? 0.25 : 1;
+    const pulse = reveal && isA ? 0.12 * Math.sin(now * 10) : 0;
+    ctx.fillStyle = z.color.c; rr(z.x * T + T * (0.08 - pulse), z.y * T + T * (0.08 - pulse), T * (0.84 + 2 * pulse), T * (0.84 + 2 * pulse), T * 0.2); ctx.fill();
+    ctx.fillStyle = '#081510'; ctx.font = `bold ${T * 0.55}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(z.color.shape, z.x * T + T / 2, z.y * T + T / 2 + 1);
+    ctx.globalAlpha = 1;
+  });
+  // chasers
+  G.enemies.forEach(e => {
+    const cx = e.x * T + T / 2, cy = e.y * T + T / 2;
+    if (e.dead > 0) { emoji('💫', G.home.x * T + T / 2, G.home.y * T + T / 2, T * 0.6, 0.6); return; }
+    if (e.scared > 0) {
+      const flash = e.scared < 1.5 && Math.floor(now * 8) % 2 === 0;
+      ctx.fillStyle = flash ? '#ffffff' : '#3A8DDE'; ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.arc(cx, cy, T * 0.46, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+      emoji(e.sprite, cx, cy, T * 0.7, 0.55); emoji('😱', cx + T * 0.28, cy - T * 0.3, T * 0.38);
+    } else emoji(e.sprite, cx, cy, T * 0.86, e.release > 0 ? 0.45 : 1);
+  });
+  // runner
+  const p = G.player;
+  if (!(G.invuln > 0 && Math.floor(now * 10) % 2 === 0)) emoji(S.player, p.x * T + T / 2, p.y * T + T / 2, T * 0.86);
+  // labels on top
+  G.zones.forEach(z => {
+    if (reveal && z.opt !== G.q.a) return;
+    let fs = Math.max(13, T * 0.5); ctx.font = `700 ${fs}px Lexend, Verdana, sans-serif`;
+    let tw = ctx.measureText(z.opt).width; const maxW = T * 6;
+    if (tw > maxW) { fs = fs * maxW / tw; ctx.font = `700 ${fs}px Lexend, Verdana, sans-serif`; tw = ctx.measureText(z.opt).width; }
+    const pw = tw + fs * 0.9, ph = fs * 1.5;
+    let lx = z.x * T + T / 2 - pw / 2; lx = Math.max(2, Math.min(G.cols * T - pw - 2, lx));
+    const ly = z.y < 3 ? z.y * T + T * 0.98 : z.y * T - ph + T * 0.02;
+    ctx.fillStyle = 'rgba(8,21,16,.92)'; rr(lx, ly, pw, ph, ph / 2); ctx.fill();
+    ctx.strokeStyle = z.color.c; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(z.opt, lx + pw / 2, ly + ph / 2 + 1);
+  });
+  if (G.state === 'countdown') {
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, G.cols * T, G.rows * T);
+    ctx.fillStyle = '#B4D38C'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `800 ${T * 1.1}px Lexend, Verdana, sans-serif`; ctx.fillText(G.cdLabel, G.cols * T / 2, G.rows * T / 2 - T * 1.1);
+    ctx.font = `800 ${T * 2}px Lexend, Verdana, sans-serif`; ctx.fillStyle = '#fff';
+    ctx.fillText(Math.ceil(G.cd), G.cols * T / 2, G.rows * T / 2 + T * 0.6);
+    ctx.font = `600 ${T * 0.5}px Lexend, Verdana, sans-serif`; ctx.fillStyle = '#d6dcdc';
+    ctx.fillText('Read the question while you wait!', G.cols * T / 2, G.rows * T / 2 + T * 2.2);
+  }
+}
+function loop(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (G && G.grid && $('#game').classList.contains('active')) { update(dt); render(ts); }
+  requestAnimationFrame(loop);
+}
+
+/* ===================================================================== MODALS */
+function modal(html, buttons) {
+  $('#mbox').innerHTML = html;
+  const row = document.createElement('div'); row.className = 'mbtns';
+  buttons.forEach(([label, fn, alt]) => { const b = document.createElement('button'); b.textContent = label; if (alt) b.className = 'alt'; b.onclick = () => { closeModal(); fn(); }; row.appendChild(b); });
+  $('#mbox').appendChild(row); $('#modal').classList.add('show');
+}
+function closeModal() { $('#modal').classList.remove('show'); }
+function missedHtml(list) {
+  if (!list.length) return '<p>🌟 No misses! Every answer was right.</p>';
+  return `<div class="missed"><h3>Words to review</h3>${list.map(m => `<div class="m">${fmtQ(m.q)}<br><span class="ans">✔ ${esc(m.a)}</span> &nbsp;<span style="color:var(--muted)">(chose: ${esc(m.chose)})</span></div>`).join('')}</div>`;
+}
+function roundEnd() {
+  if (G.round >= S.rounds) return endGame(true);
+  const pct = Math.round(100 * G.roundRight / S.qPerRound);
+  modal(`<h2>Round ${G.round} complete!</h2>
+    <div class="stats"><div class="stat"><b>${G.roundRight}/${S.qPerRound}</b>correct</div><div class="stat"><b>${pct}%</b>accuracy</div><div class="stat"><b>${G.score}</b>score</div></div>
+    <p>Next round: the chasers get a little faster${Math.floor(G.round / 2) > Math.floor((G.round - 1) / 2) && G.enemyCount < 5 ? ' and one more joins the chase' : ''}. You get one heart back.</p>
+    ${missedHtml(G.roundMissed)}`,
+    [[`▶ Start Round ${G.round + 1}`, () => { G.round++; startRound(); }], ['Menu', toMenu, true]]);
+}
+function endGame(won) {
+  G.state = 'done';
+  const pct = G.totalAsked ? Math.round(100 * G.totalRight / G.totalAsked) : 0;
+  modal(`<h2>${won ? '🏆 You escaped every round!' : '💔 Out of hearts'}</h2>
+    <div class="stats"><div class="stat"><b>${G.score}</b>score</div><div class="stat"><b>${G.totalRight}/${G.totalAsked}</b>correct</div><div class="stat"><b>${pct}%</b>accuracy</div><div class="stat"><b>${G.bestStreak}</b>best streak</div></div>
+    ${missedHtml(G.missedAll)}`,
+    [['🔁 Play again', newGame], ['Menu', toMenu, true]]);
+}
+function toMenu() { G = null; showScreen('title'); refreshTitle(); try { speechSynthesis.cancel(); } catch (e) {} }
+function pause() {
+  if (!G || !['play', 'countdown'].includes(G.state)) return;
+  G.prevState = G.state; G.state = 'paused';
+  modal('<h2>⏸ Paused</h2><p>The timer and the chasers are stopped.</p>', [['▶ Resume', () => { G.state = G.prevState; }], ['Quit to menu', toMenu, true]]);
+}
+
+/* ===================================================================== INPUT */
+const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1], a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1], A: [-1, 0], D: [1, 0], W: [0, -1], S: [0, 1] };
+window.addEventListener('keydown', ev => {
+  if (!$('#game').classList.contains('active')) return;
+  if (ev.key === 'p' || ev.key === 'P' || ev.key === 'Escape') { if (G && G.state === 'paused') { closeModal(); G.state = G.prevState; } else pause(); ev.preventDefault(); return; }
+  const k = KEYS[ev.key]; if (k) { setDir(k[0], k[1]); ev.preventDefault(); }
+});
+function setupDpad() {
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  $('#dpad').classList.toggle('show', coarse || 'ontouchstart' in window);
+}
+document.querySelectorAll('#dpad button').forEach(b => {
+  const [dx, dy] = b.dataset.d.split(',').map(Number);
+  b.addEventListener('pointerdown', ev => { ev.preventDefault(); setDir(dx, dy); });
+});
+let sw = null;
+cv.addEventListener('pointerdown', ev => { sw = { x: ev.clientX, y: ev.clientY }; });
+cv.addEventListener('pointerup', ev => {
+  if (!sw) return; const dx = ev.clientX - sw.x, dy = ev.clientY - sw.y; sw = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) setDir(Math.sign(dx), 0); else setDir(0, Math.sign(dy));
+});
+$('#pauseBtn').onclick = pause;
+$('#soundBtn').onclick = () => { S.sound = !S.sound; saveSettings(); refreshTitle(); };
+$('#speakBtn').onclick = () => { if (G && G.q) speak(G.q.q); };
+window.addEventListener('resize', resize);
+
+/* ===================================================================== BOOT */
+buildPlayerPick(); refreshTitle(); requestAnimationFrame(loop);
+window.__portalChase = { SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, S };
+})();
+</script>
+</body>
+</html>
