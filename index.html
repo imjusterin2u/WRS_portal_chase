@@ -880,12 +880,26 @@ function spawnPad() {
   if (!S.boostPads || !G.pads || G.pads.length >= (S.padCount || 7)) return;
   const doors = Object.values(G.rooms).map(r => r.door.x + ',' + r.door.y);
   const px = Math.round(G.player ? G.player.x : G.start.x), py = Math.round(G.player ? G.player.y : G.start.y);
-  const cands = [];
-  for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++) {
-    if (G.grid[y][x] !== '.' || doors.includes(x + ',' + y) || portalAt(x, y)) continue;
-    if (Math.abs(x - px) + Math.abs(y - py) < 4 || G.pads.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) continue;
-    cands.push({ x, y });
-  }
+  // pads go only on straight hallway pieces with a long runway, never in a corner or at a turn,
+  // so a boost doesn't run him straight into a wall
+  const open = (x, y) => { const c = cell(x, y); return c === '.' || c === 'S'; };
+  const run = (x, y, dx, dy) => { let n = 0; while (open(x + dx * (n + 1), y + dy * (n + 1)) && n < 20) n++; return n; };
+  const runway = (x, y) => {
+    const L = open(x - 1, y), Rr = open(x + 1, y), U = open(x, y - 1), D = open(x, y + 1);
+    if (L && Rr && !U && !D) return { len: run(x, y, -1, 0) + run(x, y, 1, 0) + 1, min: Math.min(run(x, y, -1, 0), run(x, y, 1, 0)) };
+    if (U && D && !L && !Rr) return { len: run(x, y, 0, -1) + run(x, y, 0, 1) + 1, min: Math.min(run(x, y, 0, -1), run(x, y, 0, 1)) };
+    return null; // corner, dead end, or junction
+  };
+  const pick = (minLen, minSide) => {
+    const cands = [];
+    for (let y = 1; y < G.rows - 1; y++) for (let x = 1; x < G.cols - 1; x++) {
+      if (G.grid[y][x] !== '.' || doors.includes(x + ',' + y) || portalAt(x, y)) continue;
+      if (Math.abs(x - px) + Math.abs(y - py) < 4 || G.pads.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) continue;
+      const r = runway(x, y); if (r && r.len >= minLen && r.min >= minSide) cands.push({ x, y });
+    }
+    return cands;
+  };
+  const cands = [[7, 2], [5, 2], [5, 1], [4, 1]].map(([a, b2]) => pick(a, b2)).find(c => c.length) || [];
   if (cands.length) G.pads.push(R.pick(cands));
 }
 function resetPositions(keepScared) {
