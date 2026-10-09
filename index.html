@@ -128,9 +128,9 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
     <h1>🌀 Portal Chase</h1>
     <p class="sub">Wilson Steps 5 &amp; 6 · Answer to escape. Earn the portals.</p>
     <div class="how">
-      🎯 Run into the box with the <b>right answer</b>.<br>
+      🎯 Run into the room with the <b>right answer</b>.<br>
       😱 A right answer makes the chasers <b>scared</b> for a few seconds. Tag them for bonus points!<br>
-      ⚡ Get <b id="howNeed">3</b> right to <b>open the portals</b> for <b id="howTime">30</b> seconds.<br>
+      ⚡ Get <b id="howNeed">4</b> right to <b>open the portals</b> <b id="howTime">for the rest of the round</b>. (Chasers can use them too!)<br>
       ⏳ Don't wait too long. The chasers get <b>faster</b> the longer you take.
     </div>
     <div class="label">Pick your runner</div>
@@ -589,7 +589,7 @@ const RUN_SPEEDS = { slow: 2.6, medium: 3.3, fast: 4.2 };
 const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
-  diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
+  diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockAt: 4, portalStay: 'round',
   hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze' };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
@@ -674,8 +674,9 @@ function buildTeacherPanel() {
   section(P, 'Number of rounds', seg([2, 3, 4, 5].map(n => [n, String(n)]), S.rounds, v => { S.rounds = v; saveSettings(); }));
   section(P, 'Time per question', seg([20, 30, 45, 60].map(n => [n, n + ' sec']), S.timer, v => { S.timer = v; saveSettings(); }),
     'If time runs out, it counts as a miss. Chasers speed up as the timer runs down.');
-  section(P, 'Right answers needed to open portals', seg([2, 3, 4].map(n => [n, String(n)]), S.unlockNeed, v => { S.unlockNeed = v; saveSettings(); refreshTitle(); }));
-  section(P, 'How long portals stay open', seg([20, 30, 45].map(n => [n, n + ' sec']), S.portalTime, v => { S.portalTime = v; saveSettings(); refreshTitle(); }));
+  section(P, 'Right answers needed to open portals', seg([2, 3, 4, 5, 6].map(n => [n, String(n)]), S.unlockAt, v => { S.unlockAt = v; saveSettings(); refreshTitle(); }), 'Counts right answers in the current round.');
+  section(P, 'How long portals stay open', seg([['round', 'Rest of the round'], [30, '30 sec'], [45, '45 sec']], S.portalStay, v => { S.portalStay = v; saveSettings(); refreshTitle(); }),
+    'Chasers can use open portals too. Portals lock again at the start of each new round.');
   section(P, 'Hearts', seg([3, 4, 5].map(n => [n, String(n)]), S.hearts, v => { S.hearts = v; saveSettings(); }), 'One heart comes back at the start of each new round.');
   const opts = document.createElement('div');
   opts.appendChild(toggleRow('A wrong answer takes away one ⚡ of portal power', 'wrongDrops'));
@@ -693,7 +694,7 @@ function buildTeacherPanel() {
   pv.appendChild(pb); pv.appendChild(out); section(P, 'Check the content', pv);
 }
 function refreshTitle() {
-  $('#howNeed').textContent = S.unlockNeed; $('#howTime').textContent = S.portalTime;
+  $('#howNeed').textContent = S.unlockAt; $('#howTime').textContent = S.portalStay === 'round' ? 'for the rest of the round' : `for ${S.portalStay} seconds`;
   const ok = activeSubs().length > 0; $('#startBtn').disabled = !ok; $('#startWarn').hidden = ok;
   $('#soundBtn').textContent = S.sound ? '🔊' : '🔇';
 }
@@ -704,8 +705,34 @@ function buildPlayerPick() {
     b.onclick = () => { S.player = p; saveSettings(); buildPlayerPick(); }; row.appendChild(b);
   });
 }
-$('#teacherBtn').onclick = () => { const P = $('#teacherPanel'); P.hidden = !P.hidden; if (!P.hidden) buildTeacherPanel(); };
-$('#startBtn').onclick = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} newGame(); };
+// ---- Teacher Tools code lock ----
+// The code is stored only as a hash so it can't be read from the page source.
+// To change it: run codeHash('NEWCODE') in the browser console and paste the result into TEACHER_CODE_HASH.
+const TEACHER_CODE_HASH = 'yhu4ga';
+const codeHash = t => { let x = 5381; for (const c of String(t)) x = (((x * 33) >>>0) ^ c.charCodeAt(0)) >>> 0; return x.toString(36); };
+window.codeHash = codeHash;
+let teacherUnlocked = false;
+function openTeacher() { const P = $('#teacherPanel'); P.hidden = false; buildTeacherPanel(); }
+function lockTeacher() { teacherUnlocked = false; $('#teacherPanel').hidden = true; }
+function askCode(msg) {
+  $('#mbox').innerHTML = `<h2>🔒 Teacher Tools</h2><p>${msg || 'Enter the teacher code.'}</p>
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" style="font:inherit;font-size:1.6rem;text-align:center;width:220px;padding:10px;border-radius:12px;border:2px solid #2f5440;background:#0b1a12;color:#fff;letter-spacing:6px">
+    <div class="mbtns"><button id="pinOk">Unlock</button><button class="alt" id="pinCancel">Cancel</button></div>`;
+  $('#modal').classList.add('show');
+  const inp = $('#pinIn'); setTimeout(() => inp.focus(), 50);
+  const tryIt = () => {
+    if (codeHash(inp.value.trim()) === TEACHER_CODE_HASH) { teacherUnlocked = true; closeModal(); openTeacher(); }
+    else askCode('<span style="color:#ff8a8a;font-weight:700">That code didn\'t work.</span> Try again.');
+  };
+  $('#pinOk').onclick = tryIt; $('#pinCancel').onclick = closeModal;
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') tryIt(); if (ev.key === 'Escape') closeModal(); });
+}
+$('#teacherBtn').onclick = () => {
+  const P = $('#teacherPanel');
+  if (!P.hidden) { lockTeacher(); return; }
+  if (teacherUnlocked) openTeacher(); else askCode();
+};
+$('#startBtn').onclick = () => { lockTeacher(); try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} newGame(); };
 
 /* ===================================================================== QUESTIONS */
 function buildQuestions(n) {
@@ -733,7 +760,7 @@ const COLORS = [
 let G = null, tile = 32, dpr = 1, last = 0, toastTimer = 0;
 
 function cell(x, y) { if (y < 0 || y >= G.rows || x < 0 || x >= G.cols) return '#'; return G.grid[y][x]; }
-const passE = (x, y) => { const c = cell(x, y); return c !== '#' && c !== 'P' && !isRoom(c); };
+const passE = (x, y) => { const c = cell(x, y); return c !== '#' && (c !== 'P' || G.portalOpen > 0) && !isRoom(c); };
 const passP = (x, y) => { const c = cell(x, y); return c !== '#' && (c !== 'P' || G.portalOpen > 0); };
 function mkEnt(p) { return { x: p.x, y: p.y, fx: p.x, fy: p.y, tx: p.x, ty: p.y, dx: 0, dy: 0 }; }
 
@@ -742,6 +769,7 @@ function newGame() {
   showScreen('game'); setupDpad(); startRound();
 }
 function startRound() {
+  G.portalOpen = 0; G.portalPerm = false;
   const m = mazeFor(G.round);
   G.grid = m.map(r => r.split('')); G.rows = m.length; G.cols = m[0].length; G.portals = [];
   { const mx = Math.floor(G.cols / 2); G.grid[0][mx] = 'P'; G.grid[G.rows - 1][mx] = 'P';
@@ -770,7 +798,7 @@ function startRound() {
     for (const c of cands) { if (G.spawns.length >= 5) break; if (G.spawns.every(s2 => Math.abs(s2.x - c.x) + Math.abs(s2.y - c.y) >= 7)) G.spawns.push(c); }
     for (const c of cands) { if (G.spawns.length >= 5) break; if (!G.spawns.includes(c)) G.spawns.push(c); } }
   G.questions = buildQuestions(S.qPerRound); G.qi = 0; G.roundRight = 0; G.roundMissed = [];
-  G.meter = 0; G.portalOpen = 0; G.burst = 0; G.invuln = 0;
+  G.meter = 0; G.portalOpen = 0; G.portalPerm = false; G.burst = 0; G.invuln = 0;
   const pal = THEMES[S.theme].pal; $('#game').style.background = pal.sky[0]; $('#game').style.setProperty('--trim', pal.trim);
   if (G.round > 1) G.hearts = Math.min(S.hearts, G.hearts + 1);
   const d = DIFF[S.diff];
@@ -843,10 +871,10 @@ function updateHud() {
   $('#hudScore').textContent = `⭐ ${G.score}`;
   $('#hudHearts').textContent = '❤️'.repeat(Math.max(0, G.hearts)) + '🖤'.repeat(Math.max(0, S.hearts - G.hearts));
   const m = $('#meter');
-  if (G.portalOpen > 0) { m.className = 'meter open'; m.textContent = `🌀 PORTALS OPEN · ${Math.ceil(G.portalOpen)}s`; }
+  if (G.portalOpen > 0) { m.className = 'meter open'; m.textContent = G.portalPerm ? '🌀 PORTALS OPEN for the rest of this round' : `🌀 PORTALS OPEN · ${Math.ceil(G.portalOpen)}s`; }
   else {
     m.className = 'meter';
-    const left = S.unlockNeed - G.meter;
+    const left = S.unlockAt - G.meter;
     m.textContent = `🔒 Portals ${'⚡'.repeat(G.meter)}${'⚪'.repeat(left)}  ·  ${left} more right to open`;
   }
 }
@@ -862,7 +890,10 @@ function correct() {
   SFX.right();
   if (G.portalOpen <= 0) {
     G.meter++;
-    if (G.meter >= S.unlockNeed) { G.meter = 0; G.portalOpen = S.portalTime; SFX.open(); toast(`🌀 PORTALS OPEN for ${S.portalTime}s!  +${pts}`, 'info', 2); }
+    if (G.meter >= S.unlockAt) {
+      G.meter = 0; G.portalPerm = S.portalStay === 'round'; G.portalOpen = G.portalPerm ? 1 : +S.portalStay; SFX.open();
+      toast(G.portalPerm ? `🌀 PORTALS UNLOCKED for this round!  +${pts}` : `🌀 PORTALS OPEN for ${S.portalStay}s!  +${pts}`, 'info', 2.2);
+    }
     else toast(`✔ Correct!  +${pts}${G.streak > 1 ? `  🔥${G.streak}` : ''}`, 'good');
   } else toast(`✔ Correct!  +${pts}`, 'good');
   advance();
@@ -906,12 +937,16 @@ function stepEnt(e, speed, dt, choose) {
     else { e.x += Math.sign(ddx) * move; e.y += Math.sign(ddy) * move; move = 0; }
   }
 }
+function partner(x, y) {
+  const vert = y === 0 || y === G.rows - 1;
+  return G.portals.find(p => (p.x !== x || p.y !== y) && ((p.y === 0 || p.y === G.rows - 1) === vert));
+}
+function teleport(e, sound) {
+  if (cell(e.x, e.y) !== 'P' || G.portalOpen <= 0) return;
+  const o = partner(e.x, e.y); if (o) { e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; if (sound) SFX.portal(); }
+}
 function playerChoose(e) {
-  if (cell(e.x, e.y) === 'P') {
-    const vert = e.y === 0 || e.y === G.rows - 1;
-    const o = G.portals.find(p => (p.x !== e.x || p.y !== e.y) && ((p.y === 0 || p.y === G.rows - 1) === vert));
-    if (o) { e.x = e.tx = e.fx = o.x; e.y = e.ty = e.fy = o.y; SFX.portal(); }
-  }
+  teleport(e, true);
   if (held.length) {
     const cur = { dx: e.dx, dy: e.dy }, moving = e.dx || e.dy;
     const ok = d => passP(e.x + d.dx, e.y + d.dy);
@@ -927,6 +962,7 @@ function playerChoose(e) {
 let held = []; // arrow keys currently held down, most recent first
 const DIRS = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
 function enemyChoose(e) {
+  teleport(e, false);
   const dirs = DIRS.filter(d => passE(e.x + d.dx, e.y + d.dy));
   let opts = dirs.filter(d => !((e.dx || e.dy) && d.dx === -e.dx && d.dy === -e.dy));
   if (!opts.length) opts = dirs; if (!opts.length) return null;
@@ -946,6 +982,7 @@ function computeDist() {
     const [x, y] = q[h]; const dv = G.dist[y * G.cols + x];
     for (const d of DIRS) { const nx = x + d.dx, ny = y + d.dy;
       if (passE(nx, ny) && G.dist[ny * G.cols + nx] > dv + 1) { G.dist[ny * G.cols + nx] = dv + 1; q.push([nx, ny]); } }
+    if (cell(x, y) === 'P' && G.portalOpen > 0) { const o = partner(x, y); if (o && G.dist[o.y * G.cols + o.x] > dv + 1) { G.dist[o.y * G.cols + o.x] = dv + 1; q.push([o.x, o.y]); } }
   }
 }
 function setDir(dx, dy) {
@@ -982,7 +1019,7 @@ function update(dt) {
 
   if (G.invuln > 0) G.invuln -= dt;
   if (G.burst > 0) G.burst -= dt;
-  if (G.portalOpen > 0) { const before = Math.ceil(G.portalOpen); G.portalOpen -= dt;
+  if (G.portalOpen > 0 && !G.portalPerm) { const before = Math.ceil(G.portalOpen); G.portalOpen -= dt;
     if (G.portalOpen <= 0) { G.portalOpen = 0; toast('🔒 Portals closed', 'info', 1.2); updateHud(); }
     else if (Math.ceil(G.portalOpen) !== before) updateHud(); }
 
