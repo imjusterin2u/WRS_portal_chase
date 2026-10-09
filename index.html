@@ -463,7 +463,7 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockNeed: 3, portalTime: 30,
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -552,6 +552,7 @@ function buildTeacherPanel() {
   opts.appendChild(toggleRow('A wrong answer takes away one ⚡ of portal power', 'wrongDrops'));
   opts.appendChild(toggleRow('Read each question aloud automatically', 'readAloud'));
   opts.appendChild(toggleRow('Sound effects', 'sound'));
+  opts.appendChild(toggleRow('Show on-screen arrow buttons on touch screens (off = swipe on the board)', 'dpad'));
   section(P, 'Options', opts);
   const pv = document.createElement('div');
   const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghostBtn'; pb.textContent = '👀 Preview sample questions';
@@ -1088,19 +1089,22 @@ window.addEventListener('keydown', ev => {
 });
 function setupDpad() {
   const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  $('#dpad').classList.toggle('show', coarse || 'ontouchstart' in window);
+  $('#dpad').classList.toggle('show', !!S.dpad && (coarse || 'ontouchstart' in window));
 }
 document.querySelectorAll('#dpad button').forEach(b => {
   const [dx, dy] = b.dataset.d.split(',').map(Number);
   b.addEventListener('pointerdown', ev => { ev.preventDefault(); setDir(dx, dy); });
 });
+// swipe anywhere on the board; turns as soon as the finger moves, and dragging a new way turns again without lifting
 let sw = null;
-cv.addEventListener('pointerdown', ev => { sw = { x: ev.clientX, y: ev.clientY }; });
-cv.addEventListener('pointerup', ev => {
-  if (!sw) return; const dx = ev.clientX - sw.x, dy = ev.clientY - sw.y; sw = null;
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+cv.addEventListener('pointerdown', ev => { sw = { x: ev.clientX, y: ev.clientY }; try { cv.setPointerCapture(ev.pointerId); } catch (e) {} });
+cv.addEventListener('pointermove', ev => {
+  if (!sw) return; const dx = ev.clientX - sw.x, dy = ev.clientY - sw.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
   if (Math.abs(dx) > Math.abs(dy)) setDir(Math.sign(dx), 0); else setDir(0, Math.sign(dy));
+  sw = { x: ev.clientX, y: ev.clientY };
 });
+['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { sw = null; }));
 $('#pauseBtn').onclick = pause;
 $('#qintro').addEventListener('pointerdown', ev => { ev.preventDefault(); startPlay(); });
 $('#soundBtn').onclick = () => { S.sound = !S.sound; saveSettings(); refreshTitle(); };
