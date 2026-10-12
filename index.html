@@ -28,6 +28,9 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
 .label{font-weight:600;margin:14px 0 8px;font-size:1.05rem}
 .pickRow{display:flex;gap:10px;flex-wrap:wrap}
 .pick{font-size:2rem;width:64px;height:64px;border-radius:14px;border:3px solid #2a4a38;background:var(--panel)}
+.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:104px;padding:8px 12px;border-radius:14px;border:3px solid #2a4a38;background:var(--panel);color:var(--text);font-size:1rem;font-weight:700}
+.choice .ci{font-size:1.9rem;line-height:1.1}
+.choice.on{border-color:var(--kelly);background:var(--panel2);box-shadow:0 0 0 3px rgba(13,177,75,.35)}
 .pick.on{border-color:var(--kelly);background:var(--panel2);box-shadow:0 0 0 3px rgba(13,177,75,.35)}
 .big{display:block;width:100%;margin:22px 0 10px;padding:18px;font-size:1.5rem;font-weight:800;border:0;border-radius:16px;background:var(--kelly);color:#04170c}
 .big:disabled{background:#3b4a41;color:#8a9a90;cursor:not-allowed}
@@ -135,6 +138,7 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
     </div>
     <div class="label">Pick your runner</div>
     <div class="pickRow" id="playerPick"></div>
+    <div id="studentChoices"></div>
     <button class="big" id="startBtn">▶ Start</button>
     <div class="warn" id="startWarn" hidden>Pick at least one substep in Teacher Tools.</div>
     <button class="ghostBtn" id="teacherBtn">⚙ Teacher Tools</button>
@@ -566,16 +570,30 @@ const isOneWay = c => c in ONEWAY;
 
 /* ===================================================================== SETTINGS */
 const THEMES = {
-  dino:  { name: 'Dinosaurs', icon: '🦖', sprites: ['🦖', '🦕', '🦖', '🦕', '🦖'], one: 'A dinosaur',
+  dino:  { name: 'Volcano', icon: '🌋', sprites: ['🦖', '🦕', '🦖', '🦕', '🦖'], one: 'A dinosaur',
     pal: { sky: ['#1c0703', '#6b220b', '#d4642a'], floor: '#4a4250', seam: 'rgba(255,255,255,.05)', edge: '#d9cbb6', trim: '#f2a33a',
       glow: '#ffb35c', orb: ['#fff1b8', '#ffb347', '#ff6a2b'], orbR: 0.17, star: '#ffd9a0', starN: 35, hills: '#160603', sparkle: '#ffcf8a' } },
-  alien: { name: 'Aliens',    icon: '👾', sprites: ['👾', '👽', '👾', '👽', '👾'], one: 'An alien',
+  alien: { name: 'Space', icon: '🪐', sprites: ['👾', '👽', '👾', '👽', '👾'], one: 'An alien',
     pal: { sky: ['#12052b', '#3a1170', '#6c1f9c'], floor: '#3e4766', seam: 'rgba(255,255,255,.05)', edge: '#c3c9dc', trim: '#e9b84a',
       glow: '#9be7ff', orb: ['#ffd9a0', '#ff9a3d', '#e9572a'], orbR: 0.13, star: '#c9f6ff', starN: 90, sparkle: '#b9fbff' } },
-  ghost: { name: 'Ghosts',    icon: '👻', sprites: ['👻', '👻', '👻', '👻', '👻'], one: 'A ghost',
+  ghost: { name: 'Haunted Moon', icon: '🌙', sprites: ['👻', '👻', '👻', '👻', '👻'], one: 'A ghost',
     pal: { sky: ['#03070f', '#0c1a30', '#1b3354'], floor: '#373e4f', seam: 'rgba(255,255,255,.05)', edge: '#aeb6c8', trim: '#6fe3c4',
-      glow: '#b7fff0', orb: ['#fffef0', '#f1ecc4', '#c9c290'], orbR: 0.12, star: '#e6fff8', starN: 70, fog: true, crater: true, sparkle: '#d8fff6' } }
+      glow: '#b7fff0', orb: ['#fffef0', '#f1ecc4', '#c9c290'], orbR: 0.12, star: '#e6fff8', starN: 70, fog: true, crater: true, sparkle: '#d8fff6' } },
+  ocean: { name: 'Deep Sea', icon: '🌊',
+    pal: { sky: ['#021526', '#053a5c', '#0a6d8f'], floor: '#2f4a5a', seam: 'rgba(255,255,255,.05)', edge: '#bfe3ee', trim: '#4fd1c5',
+      glow: '#8ff0ff', orb: ['#e8fdff', '#9ae6f0', '#4fb3c8'], orbR: 0.12, star: '#bff6ff', starN: 60, fog: true, sparkle: '#c8faff' } }
 };
+// chasers are picked separately from the world
+const CHASERS = {
+  dino:    { name: 'Dinosaurs', icon: '🦖', sprites: ['🦖', '🦕', '🦖', '🦕', '🦖'], one: 'A dinosaur' },
+  alien:   { name: 'Aliens',    icon: '👾', sprites: ['👾', '👽', '👾', '👽', '👾'], one: 'An alien' },
+  ghost:   { name: 'Ghosts',    icon: '👻', sprites: ['👻', '👻', '👻', '👻', '👻'], one: 'A ghost' },
+  robot:   { name: 'Robots',    icon: '🤖', sprites: ['🤖', '🦾', '🤖', '🦾', '🤖'], one: 'A robot' },
+  shark:   { name: 'Sharks',    icon: '🦈', sprites: ['🦈', '🐙', '🦈', '🐙', '🦈'], one: 'A shark' },
+  monster: { name: 'Monsters',  icon: '👹', sprites: ['👹', '👺', '👹', '👺', '👹'], one: 'A monster' },
+  zombie:  { name: 'Zombies',   icon: '🧟', sprites: ['🧟', '🧟', '🧟', '🧟', '🧟'], one: 'A zombie' }
+};
+const MAPTYPES = [['maze', '🧩', 'Maze'], ['open', '🔲', 'Wide open'], ['twisty', '🌀', 'Twisty'], ['mix', '🎲', 'Surprise me']];
 const DIFF = {
   easy:   { name: 'Easy',   count: 2, speed: 0.55, smart: 0.45, scared: 7, desc: '2 slow chasers that wander a lot' },
   medium: { name: 'Medium', count: 3, speed: 0.66, smart: 0.70, scared: 6, desc: '3 chasers that follow you most of the time' },
@@ -587,13 +605,16 @@ const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
 const SET_KEY = 'portalChase_settings_v1';
 const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockAt: 4, portalStay: 'round',
-  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', boostPads: true, padCount: 7, escapeWalls: 6, portalPairs: 2 };
+  hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', studentPick: true, boostPads: true, padCount: 7, escapeWalls: 6, portalPairs: 2 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(S)); } catch (e) {} }
 let S = loadSettings();
+if (!S.world) S.world = THEMES[S.theme] ? S.theme : 'dino';
+const world = () => THEMES[S.world] || THEMES.dino;
+const chaser = () => CHASERS[S.theme] || CHASERS.dino;
 function activeSubs() { return Object.keys(SUBSTEPS).filter(k => S.subs[k] && (S.step === 'both' || k[0] === S.step)); }
 
 /* ===================================================================== HELPERS */
@@ -648,7 +669,7 @@ function section(panel, title, el, hint) {
 function toggleRow(label, key) {
   const l = document.createElement('label'); l.className = 'toggle';
   const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!S[key];
-  i.onchange = () => { S[key] = i.checked; saveSettings(); refreshTitle(); };
+  i.onchange = () => { S[key] = i.checked; saveSettings(); refreshTitle(); buildStudentChoices(); };
   l.appendChild(i); l.appendChild(document.createTextNode(label)); return l;
 }
 function buildTeacherPanel() {
@@ -661,8 +682,11 @@ function buildTeacherPanel() {
     l.appendChild(i); const t = document.createElement('span'); t.innerHTML = `<b>${k}</b> ${esc(SUBSTEPS[k].name)}`; l.appendChild(t); subs.appendChild(l);
   });
   section(P, 'Substeps', subs, 'Questions are mixed evenly across the substeps you check.');
-  section(P, 'Chasers', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); }));
-  section(P, 'Maps', seg([['maze', 'Maze'], ['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.mapType, v => { S.mapType = v; saveSettings(); }),
+  const sp = document.createElement('div'); sp.appendChild(toggleRow('Students can pick the world, chasers & maze on the start screen', 'studentPick'));
+  section(P, 'Student choice', sp, 'Turn this off to lock in the choices below.');
+  section(P, 'World', seg(Object.entries(THEMES).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.world, v => { S.world = v; saveSettings(); buildStudentChoices(); }));
+  section(P, 'Chasers', seg(Object.entries(CHASERS).map(([k, t]) => [k, `${t.icon} ${t.name}`]), S.theme, v => { S.theme = v; saveSettings(); buildStudentChoices(); }));
+  section(P, 'Maps', seg([['maze', 'Maze'], ['open', 'Open'], ['twisty', 'Twisty'], ['mix', 'Mix']], S.mapType, v => { S.mapType = v; saveSettings(); buildStudentChoices(); }),
     '<b>Maze</b>: a real maze with rooms, new every round, no dead ends. <b>Open</b>: wide grid, hardest to get cornered. <b>Twisty</b>: fixed mazes with more walls. <b>Mix</b>: rotates through all three.');
   section(P, 'Speed boost pads', seg([[0, 'Off'], [3, '3'], [5, '5'], [7, '7']], S.boostPads ? S.padCount : 0, v => { S.boostPads = v > 0; if (v) S.padCount = v; saveSettings(); }),
     'How many pads are on the map. Pads stay in the same spots all round and can be used again and again (they recharge for 3 seconds after each use). Running over a pad = faster for 3 seconds.');
@@ -701,6 +725,19 @@ function refreshTitle() {
   $('#howNeed').textContent = S.unlockAt; $('#howTime').textContent = S.portalStay === 'round' ? 'for the rest of the round' : `for ${S.portalStay} seconds`;
   const ok = activeSubs().length > 0; $('#startBtn').disabled = !ok; $('#startWarn').hidden = ok;
   $('#soundBtn').textContent = S.sound ? '🔊' : '🔇';
+}
+function buildStudentChoices() {
+  const box = $('#studentChoices'); box.innerHTML = ''; if (!S.studentPick) return;
+  const row = (label, list, cur, onPick) => {
+    const l = document.createElement('div'); l.className = 'label'; l.textContent = label; box.appendChild(l);
+    const r = document.createElement('div'); r.className = 'pickRow';
+    list.forEach(([k, icon, name]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'choice' + (k === cur ? ' on' : '');
+      b.innerHTML = `<span class="ci">${icon}</span>${esc(name)}`; b.onclick = () => { onPick(k); saveSettings(); buildStudentChoices(); }; r.appendChild(b); });
+    box.appendChild(r);
+  };
+  row('Pick your world', Object.entries(THEMES).map(([k, t]) => [k, t.icon, t.name]), S.world, v => { S.world = v; });
+  row('Pick your chasers', Object.entries(CHASERS).map(([k, t]) => [k, t.icon, t.name]), S.theme, v => { S.theme = v; });
+  row('Pick your maze', MAPTYPES, S.mapType, v => { S.mapType = v; });
 }
 function buildPlayerPick() {
   const row = $('#playerPick'); row.innerHTML = '';
@@ -819,7 +856,7 @@ function startRound() {
     for (const c of cands) { if (G.spawns.length >= 5) break; if (!G.spawns.includes(c)) G.spawns.push(c); } }
   G.questions = buildQuestions(S.qPerRound); G.qi = 0; G.roundRight = 0; G.roundMissed = [];
   G.meter = 0; G.portalOpen = 0; G.portalPerm = false; G.burst = 0; G.invuln = 0;
-  const pal = THEMES[S.theme].pal; $('#game').style.background = pal.sky[0]; $('#game').style.setProperty('--trim', pal.trim);
+  const pal = world().pal; $('#game').style.background = pal.sky[0]; $('#game').style.setProperty('--trim', pal.trim);
   if (G.round > 1) G.hearts = Math.min(S.hearts, G.hearts + 1);
   const d = DIFF[S.diff];
   G.enemyCount = Math.min(5, d.count + Math.floor((G.round - 1) / 2));
@@ -827,7 +864,7 @@ function startRound() {
   G.player = mkEnt(G.start); G.player.nextDir = null;
   G.enemies = [];
   for (let i = 0; i < G.enemyCount; i++) {
-    const sp = G.spawns[i % G.spawns.length]; const e = mkEnt(sp); e.spawn = sp; e.sprite = THEMES[S.theme].sprites[i % 5]; e.smart = Math.max(0.3, d.smart - i * 0.07);
+    const sp = G.spawns[i % G.spawns.length]; const e = mkEnt(sp); e.spawn = sp; e.sprite = chaser().sprites[i % 5]; e.smart = Math.max(0.3, d.smart - i * 0.07);
     e.release = 1 + i * 1.6; e.scared = 0; e.dead = 0; G.enemies.push(e);
   }
   resize(); loadQuestion(); updateHud();
@@ -1026,7 +1063,7 @@ function finishReveal() {
 }
 function caught(e) {
   G.hearts--; G.streak = 0; SFX.caught();
-  toast(`💥 ${THEMES[S.theme].one} got you!`, 'bad', 1.6);
+  toast(`💥 ${chaser().one} got you!`, 'bad', 1.6);
   if (G.hearts <= 0) { updateHud(); G.state = 'done'; setTimeout(() => endGame(false), 900); return; }
   resetPositions(); G.qElapsed = 0; G.invuln = 2; updateHud();
   G.state = 'countdown'; G.cd = 1.5; G.cdLabel = 'Get ready';
@@ -1205,7 +1242,7 @@ function sparkle(c, x, y, r, col, a) {
   c.fill(); c.globalAlpha = 1;
 }
 function buildBg() {
-  const pal = THEMES[S.theme].pal, W = viewW, H = viewH, T = tile;
+  const pal = world().pal, W = viewW, H = viewH, T = tile;
   bgCanvas = bgCanvas || document.createElement('canvas');
   bgCanvas.width = W * dpr; bgCanvas.height = H * dpr;
   const b = bgCanvas.getContext('2d'); b.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1272,7 +1309,7 @@ function emoji(ch, x, y, size, alpha = 1) {
 function shadow(x, y, T) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + T * 0.36, T * 0.3, T * 0.1, 0, 0, 7); ctx.fill(); }
 function render(ts) {
   if (!G || !G.grid || !bgCanvas) return;
-  const T = tile, now = performance.now() / 1000, pal = THEMES[S.theme].pal;
+  const T = tile, now = performance.now() / 1000, pal = world().pal;
   ctx.drawImage(bgCanvas, 0, 0, viewW, viewH);
   twinkles.forEach(t => sparkle(ctx, t.x, t.y, t.r * (0.6 + 0.4 * Math.sin(now * 2 + t.ph)), pal.sparkle, 0.35 + 0.35 * Math.sin(now * 2 + t.ph)));
   ctx.save(); ctx.translate(ox, oy);
@@ -1492,7 +1529,7 @@ window.addEventListener('resize', resize);
 if (window.ResizeObserver) { let lastH = 0, lastW = 0; new ResizeObserver(() => { const w = $('#cwrap'); if (w.clientHeight !== lastH || w.clientWidth !== lastW) { lastH = w.clientHeight; lastW = w.clientWidth; resize(); } }).observe($('#cwrap')); }
 
 /* ===================================================================== BOOT */
-buildPlayerPick(); refreshTitle(); requestAnimationFrame(loop);
+buildPlayerPick(); buildStudentChoices(); refreshTitle(); requestAnimationFrame(loop);
 window.__portalChase = { bestWidth, SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, placeZones, genMaze, S };
 })();
 </script>
