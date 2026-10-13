@@ -1330,6 +1330,16 @@ function emoji(ch, x, y, size, alpha = 1) {
   ctx.globalAlpha = alpha; ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(ch, x, y); ctx.globalAlpha = 1;
 }
+// crisp character token: light disc + solid colored ring + full-color character on top (no blur, no fading)
+function token(ch, x, y, T, ring, alpha = 1, scale = 1) {
+  const r = T * 0.5 * scale;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.85, r * 0.75, r * 0.25, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f3f5fa'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.lineWidth = Math.max(2.5, T * 0.09); ctx.strokeStyle = ring; ctx.stroke();
+  ctx.restore();
+  emoji(ch, x, y + T * 0.03, T * 0.78 * scale, alpha);
+}
 function shadow(x, y, T) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + T * 0.36, T * 0.3, T * 0.1, 0, 0, 7); ctx.fill(); }
 function render(ts) {
   if (!G || !G.grid || !bgCanvas) return;
@@ -1440,29 +1450,25 @@ function render(ts) {
   G.enemies.forEach(e => {
     const cx = e.x * T + T / 2, cy = e.y * T + T / 2;
     if (e.dead > 0) { emoji('💫', e.spawn.x * T + T / 2, e.spawn.y * T + T / 2, T * 0.6, 0.6); return; }
-    const bob = Math.sin(now * 8 + cx) * T * 0.04;
-    shadow(cx, cy, T);
+    const bob = Math.sin(now * 8 + cx) * T * 0.03;
     if (e.scared > 0) {
-      const flash = e.scared < 1.5 && Math.floor(now * 8) % 2 === 0;
-      ctx.save(); ctx.shadowColor = '#7fc4ff'; ctx.shadowBlur = T * 0.5;
-      ctx.fillStyle = flash ? '#ffffff' : '#3A8DDE'; ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.arc(cx, cy, T * 0.44, 0, 7); ctx.fill(); ctx.restore();
-      emoji(e.sprite, cx, cy + bob, T * 0.7, 0.55); emoji('😱', cx + T * 0.28, cy - T * 0.3, T * 0.38);
-    } else emoji(e.sprite, cx, cy + bob, T * 0.86, e.release > 0 ? 0.45 : 1);
+      const flash = e.scared < 1.5 && Math.floor(now * 8) % 2 === 0; // ring blinks white when scared is almost over
+      token(e.sprite, cx, cy + bob, T, flash ? '#ffffff' : '#4fb0ff', 1, 1.05);
+      emoji('😱', cx + T * 0.36, cy - T * 0.36, T * 0.4);
+    } else token(e.sprite, cx, cy + bob, T, '#ff4d4d', e.release > 0 ? 0.6 : 1, 1.05);
   });
   // runner
   const p = G.player, px = p.x * T + T / 2, py = p.y * T + T / 2;
   if (G.boostT > 0 && (p.dx || p.dy)) { // speed trail
-    for (let k = 3; k >= 1; k--) emoji(S.player, px - p.dx * T * 0.32 * k, py - p.dy * T * 0.32 * k, T * 0.8, 0.12 * (4 - k));
+    for (let k = 3; k >= 1; k--) { ctx.save(); ctx.globalAlpha = 0.12 * (4 - k); ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(px - p.dx * T * 0.32 * k, py - p.dy * T * 0.32 * k, T * 0.4, 0, 7); ctx.fill(); ctx.restore(); }
     ctx.save(); ctx.strokeStyle = 'rgba(255,225,80,.8)'; ctx.lineWidth = 2;
     for (let k = -1; k <= 1; k++) { const ox2 = p.dy ? k * T * 0.22 : 0, oy2 = p.dx ? k * T * 0.22 : 0;
       ctx.beginPath(); ctx.moveTo(px - p.dx * T * 0.45 + ox2, py - p.dy * T * 0.45 + oy2); ctx.lineTo(px - p.dx * T * 1.1 + ox2, py - p.dy * T * 1.1 + oy2); ctx.stroke(); }
     ctx.restore();
   }
-  if (!(G.invuln > 0 && Math.floor(now * 10) % 2 === 0)) {
-    shadow(px, py, T);
-    const hg = ctx.createRadialGradient(px, py, 0, px, py, T * 0.6); hg.addColorStop(0, 'rgba(255,255,255,.45)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(px, py, T * 0.6, 0, 7); ctx.fill(); emoji(S.player, px, py, T * 0.86);
-  }
+  // runner: always visible; while protected after a hit it pulses instead of blinking out
+  const prot = G.invuln > 0 ? 0.55 + 0.45 * Math.abs(Math.sin(now * 6)) : 1;
+  token(S.player, px, py, T, G.boostT > 0 ? '#ffd23f' : '#2ee66b', prot, 1.1);
   ctx.restore();
   if (G.state === 'countdown') {
     const cx = viewW / 2, cy = oy + G.rows * T / 2;
