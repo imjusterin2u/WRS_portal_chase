@@ -129,7 +129,7 @@ h1{font-size:clamp(2.2rem,6vw,3.4rem);margin:8px 0 4px;color:var(--celery);lette
 <div id="title" class="screen active">
   <div class="titleWrap">
     <h1>🌀 Portal Chase</h1>
-    <p class="sub">Wilson Steps 5 &amp; 6 · Answer to escape. Earn the portals.</p>
+    <p class="sub" id="subTitle">Wilson Reading · Answer to escape. Earn the portals.</p>
     <div class="how">
       🎯 Run into the room with the <b>right answer</b>.<br>
       😱 A right answer makes the chasers <b>scared</b> for a few seconds. Tag them for bonus points!<br>
@@ -299,7 +299,40 @@ const STLE = ['castle','whistle','bristle','thistle','nestle'];
 const NOTCLE64 = ['silent','rocky','helpful','sudden','robot','candy','landed','tulip'];
 const CLE_PLUS = [['castles','castle'],['whistles','whistle'],['tables','table'],['candles','candle'],['bubbles','bubble'],['unstable','stable'],['handles','handle'],['titles','title']];
 
+
+// ---------- Step 3.1 lists (WRS Student Reader Three, Substep 3.1) ----------
+const C31_COMPOUND = [["zigzag", "zig|zag"], ["checkup", "check|up"], ["pigpen", "pig|pen"], ["chitchat", "chit|chat"], ["tomcat", "tom|cat"], ["kickball", "kick|ball"], ["suntan", "sun|tan"], ["cutoff", "cut|off"], ["upwell", "up|well"], ["laptop", "lap|top"], ["sunbath", "sun|bath"], ["dishpan", "dish|pan"], ["tidbit", "tid|bit"], ["codfish", "cod|fish"], ["catnip", "cat|nip"], ["hotshot", "hot|shot"], ["bathtub", "bath|tub"], ["nutshell", "nut|shell"], ["backpack", "back|pack"], ["gumball", "gum|ball"], ["duckbill", "duck|bill"], ["hilltop", "hill|top"], ["hatbox", "hat|box"], ["sunfish", "sun|fish"], ["setback", "set|back"], ["potluck", "pot|luck"], ["singsong", "sing|song"], ["backup", "back|up"], ["billfish", "bill|fish"], ["batfish", "bat|fish"], ["kickback", "kick|back"], ["mothball", "moth|ball"], ["pinball", "pin|ball"], ["pillbox", "pill|box"], ["backlog", "back|log"], ["offset", "off|set"], ["mockup", "mock|up"], ["cutback", "cut|back"], ["pitfall", "pit|fall"], ["whiplash", "whip|lash"], ["ramrod", "ram|rod"], ["tenpin", "ten|pin"], ["bellhop", "bell|hop"], ["rockfish", "rock|fish"], ["pickax", "pick|ax"], ["ashcan", "ash|can"], ["fishnet", "fish|net"], ["sunset", "sun|set"], ["shamrock", "sham|rock"]];
+const C31_CACTUS = [["summit", "sum|mit"], ["optic", "op|tic"], ["humbug", "hum|bug"], ["pastel", "pas|tel"], ["peptic", "pep|tic"], ["bandit", "ban|dit"], ["lentil", "len|til"], ["gossip", "gos|sip"], ["pallid", "pal|lid"], ["quintet", "quin|tet"], ["pundit", "pun|dit"], ["coffin", "cof|fin"], ["cosmic", "cos|mic"], ["rustic", "rus|tic"], ["mantis", "man|tis"], ["puffin", "puf|fin"], ["ransack", "ran|sack"], ["tactic", "tac|tic"], ["pulpit", "pul|pit"], ["gimmick", "gim|mick"], ["pepsin", "pep|sin"], ["hamlet", "ham|let"], ["hectic", "hec|tic"], ["septic", "sep|tic"], ["fabric", "fab|ric"], ["candid", "can|did"], ["limpid", "lim|pid"], ["index", "in|dex"], ["fossil", "fos|sil"], ["canyon", "can|yon"], ["publish", "pub|lish"], ["vessel", "ves|sel"], ["public", "pub|lic"], ["picnic", "pic|nic"], ["magnet", "mag|net"], ["basket", "bas|ket"], ["helmet", "hel|met"], ["velvet", "vel|vet"], ["puppet", "pup|pet"], ["nugget", "nug|get"], ["tablet", "tab|let"]];
+const C31_RELISH = [["banish", "ban|ish"], ["epic", "ep|ic"], ["timid", "tim|id"], ["mimic", "mim|ic"], ["vivid", "viv|id"], ["famish", "fam|ish"], ["toxin", "tox|in"], ["relish", "rel|ish"], ["vapid", "vap|id"], ["relic", "rel|ic"], ["avid", "av|id"], ["manic", "man|ic"], ["vomit", "vom|it"], ["fetid", "fet|id"], ["tonic", "ton|ic"], ["radish", "rad|ish"], ["tepid", "tep|id"], ["valid", "val|id"], ["livid", "liv|id"], ["vanish", "van|ish"], ["login", "log|in"], ["comic", "com|ic"], ["rabid", "rab|id"], ["canid", "can|id"], ["sonic", "son|ic"], ["debit", "deb|it"], ["lavish", "lav|ish"], ["topic", "top|ic"], ["cabin", "cab|in"], ["edit", "ed|it"], ["limit", "lim|it"], ["finish", "fin|ish"], ["seven", "sev|en"], ["solid", "sol|id"], ["rapid", "rap|id"]];
+const C31_DIGRAPH = [["rocket", "rock|et"], ["packet", "pack|et"], ["ticket", "tick|et"], ["pocket", "pock|et"], ["jacket", "jack|et"], ["bucket", "buck|et"], ["locket", "lock|et"], ["racket", "rack|et"], ["gothic", "goth|ic"], ["ethic", "eth|ic"], ["ethnic", "eth|nic"], ["bishop", "bish|op"]];
+const C31_RULES = [[C31_COMPOUND, 'compound word: split between the 2 words'], [C31_CACTUS, '2 consonants: split between them'], [C31_RELISH, '1 consonant: it goes with the 1st syllable'], [C31_DIGRAPH, 'digraph: keep it together']];
+const C31_SCHWA = ["rocket", "packet", "ticket", "pocket", "jacket", "bucket", "locket", "racket", "helmet", "basket", "tablet", "puppet", "magnet", "nugget", "velvet", "pedal", "gallon", "melon", "lemon", "sandal", "falcon", "panel", "salad", "ribbon", "tendon", "funnel", "ransom", "hammock", "mussel", "reckon", "sullen", "ravel", "tonsil", "callus", "jackal", "mammoth", "campus", "gallop", "beckon", "chisel", "revel", "fennel", "vandal", "pixel", "hummus", "random", "haddock", "bishop", "ballot", "sultan", "talon", "havoc", "atlas", "anthem", "magnum", "summon", "felon", "canvas", "chapel", "tassel", "talcum", "fungus", "pivot", "paddock", "bedlam", "litmus", "rascal", "tinsel", "linden", "mutton", "fathom", "gamut", "midden"];
+const C31_ET = ["rocket", "packet", "ticket", "pocket", "jacket", "bucket", "locket", "racket", "helmet", "basket", "tablet", "puppet", "magnet", "nugget", "velvet"];
+const C31_PREFIX = [["midship", "mid", "ship"], ["nonfat", "non", "fat"], ["unlock", "un", "lock"], ["unpack", "un", "pack"], ["unman", "un", "man"], ["nonfan", "non", "fan"], ["unpin", "un", "pin"], ["misluck", "mis", "luck"], ["undid", "un", "did"], ["unbox", "un", "box"], ["undock", "un", "dock"], ["uncut", "un", "cut"], ["unfit", "un", "fit"], ["transfix", "trans", "fix"], ["miscall", "mis", "call"], ["misled", "mis", "led"], ["unwell", "un", "well"], ["unset", "un", "set"], ["uncap", "un", "cap"], ["midleg", "mid", "leg"], ["unmix", "un", "mix"], ["unlit", "un", "lit"], ["unfix", "un", "fix"], ["misfit", "mis", "fit"], ["nontax", "non", "tax"], ["unshut", "un", "shut"], ["unwed", "un", "wed"], ["unwish", "un", "wish"], ["unfed", "un", "fed"]];
+const C31_PRE_MEAN = { 'mid-': 'middle', 'mis-': 'wrong', 'non-': 'not', 'trans-': 'across', 'un-': 'not, the opposite' };
+const C31_SUFFIX = [["optics", "optic", "s"], ["radishes", "radish", "es"], ["vanishes", "vanish", "es"], ["signets", "signet", "s"], ["talons", "talon", "s"], ["sonnets", "sonnet", "s"], ["relishes", "relish", "es"], ["witnesses", "witness", "es"], ["cutbacks", "cutback", "s"], ["mantels", "mantel", "s"], ["pitfalls", "pitfall", "s"], ["onrushes", "onrush", "es"], ["vanquishes", "vanquish", "es"], ["gaskets", "gasket", "s"], ["duchesses", "duchess", "es"], ["pastels", "pastel", "s"], ["annexes", "annex", "es"], ["pivots", "pivot", "s"], ["lavishes", "lavish", "es"], ["setbacks", "setback", "s"], ["campuses", "campus", "es"], ["mishmashes", "mishmash", "es"], ["bevels", "bevel", "s"], ["banishes", "banish", "es"], ["pundits", "pundit", "s"], ["padlocks", "padlock", "s"], ["pummels", "pummel", "s"], ["calluses", "callus", "es"], ["toxins", "toxin", "s"]];
+const C31_IC = ["optic", "cosmic", "ethnic", "rustic", "tactic", "hectic", "septic", "fabric", "epic", "mimic", "relic", "gothic", "manic", "tonic", "comic", "ethic", "sonic", "public", "picnic", "peptic", "topic"];
+const C31_DOUBLE = ["summit", "gossip", "pallid", "coffin", "puffin", "gimmick", "vessel", "fossil", "ribbon", "gallon", "funnel", "mussel", "sullen", "callus", "mammoth", "gallop", "fennel", "hummus", "haddock", "ballot", "summon", "tassel", "paddock", "mutton", "midden", "puppet", "nugget"];
+
 const SUBSTEPS = {
+  '3.1': { name: 'Two closed syllables (sunset, cactus, relish), schwa, prefixes mid- mis- non- trans- un-, -s / -es', gens: [
+    () => { const [w, d] = R.pick(R.pick(C31_RULES)[0]); return divItem(`How do you divide *${w}* into syllables?`, w, d); },
+    () => { const [list, rule] = R.pick(C31_RULES); const [w, d] = R.pick(list);
+      return item(`Why is *${w}* divided *${d.replace('|', ' | ')}*?`, rule, C31_RULES.map(r => r[1]).filter(x => x !== rule)); },
+    () => item('Which word is a <u>compound</u> word?', R.pick(C31_COMPOUND)[0], R.sample(C31_CACTUS.concat(C31_RELISH).map(x => x[0]), 3)),
+    () => item('Which word has a <u>schwa</u> sound?', R.pick(C31_SCHWA), R.sample(C31_COMPOUND.map(x => x[0]), 3)),
+    () => item(`In *${R.pick(C31_ET)}*, the e in the last syllable sounds like:`, '/ĭ/', ['/ĕ/', '/ē/', '/ŭ/']),
+    () => { const [w, pf] = R.pick(C31_PREFIX); return item(`What is the <u>prefix</u> in *${w}*?`, pf + '-', Object.keys(C31_PRE_MEAN).filter(x => x !== pf + '-')); },
+    () => { const [w, pf, b] = R.pick(C31_PREFIX); return item(`What is the <u>base word</u> in *${w}*?`, b, [w, pf, w.slice(1), b.slice(0, -1)]); },
+    () => { const pf = R.pick(Object.keys(C31_PRE_MEAN)); const ex = R.pick(C31_PREFIX.filter(x => x[1] + '-' === pf));
+      const others = ['middle', 'wrong', 'across', 'not'].filter(m => !C31_PRE_MEAN[pf].startsWith(m));
+      return item(`The prefix *${pf}* (as in *${ex[0]}*) means:`, C31_PRE_MEAN[pf], R.shuffle(others)); },
+    () => { const [w, b] = R.pick(C31_SUFFIX); return item(`What is the <u>base word</u> in *${w}*?`, b, [w, w.slice(0, -1), b.slice(0, -1)]); },
+    () => { const [w, , x] = R.pick(C31_SUFFIX); return item(`Which suffix was added to make *${w}*?`, '-' + x, ['-s', '-es'].filter(y => y !== '-' + x)); },
+    () => { const w = R.pick(C31_IC), stem = w.slice(0, -2); return item('Which word is spelled correctly?', w, [stem + 'ik', stem + 'ick']); },
+    () => { const w = R.pick(C31_DOUBLE); return item('Which word is spelled correctly?', w, [w.replace(/([b-df-hj-np-tv-z])\1/, '$1')]); }
+  ]},
+
   '5.1': { name: 'Open syllables in one-syllable words (go, hi, shy) & open-syllable prefixes', gens: [
     () => item('Which word ends in an <u>open</u> syllable?', R.pick(OPEN1), R.sample(CLOSED1.concat(VE1), 3)),
     () => item('Which word has a <u>closed</u> syllable?', R.pick(CLOSED1), R.sample(OPEN1, 3)),
@@ -602,20 +635,26 @@ const DIFF = {
 const PLAYERS = ['😎', '🐸', '🤖', '🐱', '🦊', '🐵'];
 const RUN_SPEEDS = { slow: 2.6, medium: 3.3, fast: 4.2 };
 const runSpeed = () => RUN_SPEEDS[S.runSpeed] || RUN_SPEEDS.medium;
-const SET_KEY = 'portalChase_settings_v1';
-const DEFAULTS = { step: 'both', subs: { '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
+// Per-student links: ...?student=NAME keeps that student's settings separate on the same device.
+// A link whose name starts with 3 (e.g. ?student=3.1) starts on Step 3.1 with easier chasers.
+const PROFILE = (new URLSearchParams(location.search).get('student') || '').replace(/[^\w.-]/g, '').slice(0, 24);
+const SET_KEY = 'portalChase_settings_v1' + (PROFILE ? '_' + PROFILE : '');
+const DEFAULTS = { step: 'both', subs: { '3.1': true, '5.1': true, '5.2': true, '5.3': true, '5.4': true, '5.5': true, '6.1': true, '6.2': true, '6.3': true, '6.4': true },
   diff: 'medium', theme: 'dino', player: '😎', qPerRound: 8, rounds: 3, timer: 30, unlockAt: 4, portalStay: 'round',
   hearts: 3, runSpeed: 'medium', wrongDrops: true, readAloud: false, sound: true, dpad: false, mapType: 'maze', studentPick: true, boostPads: true, padCount: 7, escapeWalls: 6, portalPairs: 2 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); if (s) return { ...DEFAULTS, ...s, subs: { ...DEFAULTS.subs, ...(s.subs || {}) } }; } catch (e) {}
-  return JSON.parse(JSON.stringify(DEFAULTS));
+  const d = JSON.parse(JSON.stringify(DEFAULTS));
+  if (/^3/.test(PROFILE)) { d.step = '3'; d.diff = 'easy'; }
+  return d;
 }
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(S)); } catch (e) {} }
 let S = loadSettings();
 if (!S.world) S.world = THEMES[S.theme] ? S.theme : 'dino';
 const world = () => THEMES[S.world] || THEMES.dino;
 const chaser = () => CHASERS[S.theme] || CHASERS.dino;
-function activeSubs() { return Object.keys(SUBSTEPS).filter(k => S.subs[k] && (S.step === 'both' || k[0] === S.step)); }
+const inStep = k => S.step === 'both' ? (k[0] === '5' || k[0] === '6') : k[0] === S.step;
+function activeSubs() { return Object.keys(SUBSTEPS).filter(k => S.subs[k] && inStep(k)); }
 
 /* ===================================================================== HELPERS */
 const $ = s => document.querySelector(s);
@@ -674,9 +713,9 @@ function toggleRow(label, key) {
 }
 function buildTeacherPanel() {
   const P = $('#teacherPanel'); P.innerHTML = '';
-  section(P, 'Step', seg([['5', 'Step 5'], ['6', 'Step 6'], ['both', 'Steps 5 + 6']], S.step, v => { S.step = v; saveSettings(); buildTeacherPanel(); refreshTitle(); }));
+  section(P, 'Step', seg([['3', 'Step 3'], ['5', 'Step 5'], ['6', 'Step 6'], ['both', 'Steps 5 + 6']], S.step, v => { S.step = v; saveSettings(); buildTeacherPanel(); refreshTitle(); }));
   const subs = document.createElement('div'); subs.className = 'subs';
-  Object.keys(SUBSTEPS).filter(k => S.step === 'both' || k[0] === S.step).forEach(k => {
+  Object.keys(SUBSTEPS).filter(inStep).forEach(k => {
     const l = document.createElement('label'); const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!S.subs[k];
     i.onchange = () => { S.subs[k] = i.checked; saveSettings(); refreshTitle(); };
     l.appendChild(i); const t = document.createElement('span'); t.innerHTML = `<b>${k}</b> ${esc(SUBSTEPS[k].name)}`; l.appendChild(t); subs.appendChild(l);
@@ -1559,6 +1598,7 @@ window.addEventListener('resize', resize);
 if (window.ResizeObserver) { let lastH = 0, lastW = 0; new ResizeObserver(() => { const w = $('#cwrap'); if (w.clientHeight !== lastH || w.clientWidth !== lastW) { lastH = w.clientHeight; lastW = w.clientWidth; resize(); } }).observe($('#cwrap')); }
 
 /* ===================================================================== BOOT */
+if (PROFILE) { const st = $('#subTitle'); if (st) st.textContent = `Wilson Reading · ${PROFILE} · Answer to escape. Earn the portals.`; }
 buildPlayerPick(); buildStudentChoices(); refreshTitle(); requestAnimationFrame(loop);
 window.__portalChase = { bestWidth, SUBSTEPS, MAZES, get G() { return G; }, newGame, update, setDir, buildQuestions, placeZones, genMaze, S };
 })();
