@@ -904,9 +904,30 @@ function placePortals() {
       const col = PORTAL_COLORS[k];
       G.portals.push({ x: a.x, y: a.y, pair: k, color: col }, { x: b.x, y: b.y, pair: k, color: col });
     }
-    if (roomsReachable()) return;
+    if (everySquareReachesRooms(new Set(G.portals.filter(p => !p.edge).map(p => p.x + ',' + p.y)))) return;
   }
   G.portals = wraps; // couldn't place them safely: skip colored portals this round rather than block a room
+}
+function everySquareReachesRooms(blocked) {
+  blocked = blocked || new Set();
+  const key = (x, y) => x + ',' + y;
+  const open = (x, y) => { const c = cell(x, y); return c !== '#' && c !== 'P' && !blocked.has(key(x, y)); };
+  const canStep = (x, y, d) => { // move from (x,y) to (x+dx,y+dy)
+    const nx = x + d.dx, ny = y + d.dy; if (!open(x, y) || !open(nx, ny)) return false;
+    const c = cell(nx, ny); return !isOneWay(c) || (ONEWAY[c][0] === d.dx && ONEWAY[c][1] === d.dy);
+  };
+  const squares = [];
+  for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) if (open(x, y) && !isRoom(cell(x, y))) squares.push(key(x, y));
+  for (const r of Object.values(G.rooms)) {
+    // walk backwards out of the room: which squares can get here?
+    const can = new Set(), q = [];
+    for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) { can.add(key(x, y)); q.push([x, y]); }
+    for (let h = 0; h < q.length; h++) { const [x, y] = q[h];
+      for (const d of DIRS) { const px = x - d.dx, py = y - d.dy, k = key(px, py);
+        if (!can.has(k) && canStep(px, py, d)) { can.add(k); q.push([px, py]); } } }
+    if (squares.some(k => !can.has(k))) return false;
+  }
+  return true;
 }
 function makeEscapeWalls(n) {
   if (!n) return;
@@ -929,7 +950,10 @@ function makeEscapeWalls(n) {
   // prefer walls that save a long trip; on very open maps fall back to the best shortcuts available
   const good = R.shuffle(cands.filter(c => c.gain >= 8)).concat(R.shuffle(cands.filter(c => c.gain >= 4 && c.gain < 8))), chosen = [];
   for (const c of good) { if (chosen.length >= n) break; if (chosen.every(o => Math.abs(o.x - c.x) + Math.abs(o.y - c.y) >= 6)) chosen.push(c); }
-  chosen.forEach(c => { G.grid[c.y][c.x] = c.axis === 'h' ? R.pick(['>', '<']) : R.pick(['v', '^']); });
+  chosen.forEach(c => {
+    G.grid[c.y][c.x] = c.axis === 'h' ? R.pick(['>', '<']) : R.pick(['v', '^']);
+    if (!everySquareReachesRooms()) G.grid[c.y][c.x] = '#'; // this one would trap him somewhere: leave it a plain wall
+  });
 }
 function spawnPad() {
   if (!S.boostPads || !G.pads || G.pads.length >= (S.padCount || 7)) return;
